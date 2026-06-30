@@ -49,22 +49,9 @@
 		CF6E948D2E0984D600503E09 /* GoogleService-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "GoogleService-Info.plist"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
-/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
-		CF558B7C2EF0E302002605DD /* Exceptions for "lastminute" folder in "lastminute" target */ = {
-			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
-			membershipExceptions = (
-				Untitled.swift,
-			);
-			target = CF6E935E2E04E63700503E09 /* lastminute */;
-		};
-/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
-
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		CF6E93612E04E63700503E09 /* lastminute */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			exceptions = (
-				CF558B7C2EF0E302002605DD /* Exceptions for "lastminute" folder in "lastminute" target */,
-			);
 			path = lastminute;
 			sourceTree = "<group>";
 		};

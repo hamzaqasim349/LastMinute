@@ -132,8 +132,8 @@ struct RootView: View {
                     Button("Sign Up") {
                         path.append(SignUpRoute.choice)
                     }
-                    .font(.headline.bold())
-                    .foregroundColor(.white)
+                    .font(.subheadline.bold())
+                    .foregroundColor(Color(red: 0.2, green: 0.4, blue: 0.8))
                 }
             }
     }

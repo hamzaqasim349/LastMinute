@@ -87,11 +87,11 @@ struct ForgotPasswordView: View {
                             .bold()
                             .frame(maxWidth: .infinity)
                             .padding()
-                            .background(Color(red: 0.2, green: 0.4, blue: 0.8))
+                            .background(isEmailValid ? Color(red: 0.2, green: 0.4, blue: 0.8) : Color(red: 0.2, green: 0.4, blue: 0.8).opacity(0.4))
                             .foregroundColor(.white)
                             .cornerRadius(12)
                     }
-                    .disabled(isLoading)
+                    .disabled(!isEmailValid || isLoading)
                     .padding(.horizontal, 30)
                     .padding(.top, 24)
 
@@ -127,6 +127,11 @@ struct ForgotPasswordView: View {
     }
 
     // MARK: - Validation & Reset
+
+    private var isEmailValid: Bool {
+        let trimmed = email.trimmingCharacters(in: .whitespaces)
+        return !trimmed.isEmpty && isValidEmail(trimmed) && emailError == nil
+    }
 
     private func attemptReset() {
         emailError = nil

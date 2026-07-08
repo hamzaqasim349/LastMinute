@@ -116,11 +116,11 @@ struct LogInView: View {
                             .bold()
                             .frame(maxWidth: .infinity)
                             .padding()
-                            .background(Color(red: 0.2, green: 0.4, blue: 0.8))
+                            .background(isFormValid ? Color(red: 0.2, green: 0.4, blue: 0.8) : Color(red: 0.2, green: 0.4, blue: 0.8).opacity(0.4))
                             .foregroundColor(.white)
                             .cornerRadius(12)
                     }
-                    .disabled(isLoading)
+                    .disabled(!isFormValid || isLoading)
                 }
                 .padding(.horizontal, 30)
                 .padding(.bottom, 50)
@@ -150,6 +150,11 @@ struct LogInView: View {
     }
 
     // MARK: - Validation & Login
+
+    private var isFormValid: Bool {
+        let trimmedEmail = email.trimmingCharacters(in: .whitespaces)
+        return !trimmedEmail.isEmpty && isValidEmail(trimmedEmail) && !password.isEmpty && emailError == nil && passwordError == nil
+    }
 
     private func attemptLogin() {
         // Reset errors

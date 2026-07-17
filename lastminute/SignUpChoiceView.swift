@@ -21,48 +21,91 @@ struct SignUpChoiceView: View {
     @Binding var path: NavigationPath
 
     var body: some View {
-        GeometryReader { geo in
-            VStack(spacing: 0) {
-                // Top - Business section with gradient transition
-                ZStack {
-                    // Gradient from blue to white
-                    LinearGradient(
-                        gradient: Gradient(stops: [
-                            .init(color: Color(red: 0.7, green: 0.85, blue: 1.0), location: 0.0),
-                            .init(color: Color(red: 0.85, green: 0.9, blue: 1.0), location: 0.4),
-                            .init(color: .white, location: 1.05)
-                        ]),
-                        startPoint: .top,
-                        endPoint: .bottom
-                    )
-
-                    Text("Business")
-                        .font(.largeTitle.bold())
-                        .foregroundColor(.white)
-                        .shadow(color: .black.opacity(0.2), radius: 3, x: 0, y: 2)
-                }
-                .frame(height: geo.size.height * 0.55) // slightly larger top section
-                .onTapGesture {
-                    path.append(SignUpRoute.form(.business))
-                }
-
-                // Bottom - Worker section
-                ZStack {
-                    Color.white
-
-                    Text("Worker")
-                        .font(.largeTitle.bold())
-                        .foregroundColor(.blue)
-                        .padding(.bottom, 10)
-                }
-                .frame(height: geo.size.height * 0.3)
-                .onTapGesture {
-                    path.append(SignUpRoute.form(.worker))
-                }
-            }
+        ZStack {
+            // Background gradient matching login
+            LinearGradient(
+                gradient: Gradient(colors: [Color(red: 0.7, green: 0.85, blue: 1.0), Color(red: 0.85, green: 0.9, blue: 1.0)]),
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
             .ignoresSafeArea()
+
+            VStack(spacing: 0) {
+                // Title section
+                VStack(spacing: 4) {
+                    Text("Join as")
+                        .font(.system(size: 34, weight: .heavy))
+                        .foregroundColor(Color(red: 0.12, green: 0.15, blue: 0.3))
+
+                    Text("Choose how you'd like to get started")
+                        .font(.subheadline)
+                        .foregroundColor(Color(red: 0.3, green: 0.4, blue: 0.55))
+                }
+                .padding(.top, 40)
+                .padding(.bottom, 24)
+
+                Spacer()
+
+                // Cards
+                VStack(spacing: 20) {
+                    // Business card
+                    Button {
+                        path.append(SignUpRoute.form(.business))
+                    } label: {
+                        HStack {
+                            VStack(alignment: .leading, spacing: 6) {
+                                Text("Business")
+                                    .font(.title2.bold())
+                                    .foregroundColor(.white)
+
+                                Text("Post jobs and find workers")
+                                    .font(.subheadline)
+                                    .foregroundColor(.white.opacity(0.85))
+                            }
+
+                            Spacer()
+
+                            Image(systemName: "building.2.fill")
+                                .font(.system(size: 32))
+                                .foregroundColor(.white.opacity(0.8))
+                        }
+                        .padding(24)
+                        .background(Color(red: 0.2, green: 0.4, blue: 0.8))
+                        .cornerRadius(16)
+                    }
+
+                    // Worker card
+                    Button {
+                        path.append(SignUpRoute.form(.worker))
+                    } label: {
+                        HStack {
+                            VStack(alignment: .leading, spacing: 6) {
+                                Text("Worker")
+                                    .font(.title2.bold())
+                                    .foregroundColor(Color(red: 0.15, green: 0.2, blue: 0.4))
+
+                                Text("Find nearby jobs and get hired")
+                                    .font(.subheadline)
+                                    .foregroundColor(Color(red: 0.2, green: 0.3, blue: 0.5))
+                            }
+
+                            Spacer()
+
+                            Image(systemName: "person.fill.checkmark")
+                                .font(.system(size: 32))
+                                .foregroundColor(Color(red: 0.2, green: 0.4, blue: 0.8))
+                        }
+                        .padding(24)
+                        .background(Color.white.opacity(0.85))
+                        .cornerRadius(16)
+                    }
+                }
+                .padding(.horizontal, 28)
+
+                Spacer()
+                Spacer()
+            }
         }
-        .navigationTitle("Sign Up Choice")
         .navigationBarTitleDisplayMode(.inline)
     }
 }

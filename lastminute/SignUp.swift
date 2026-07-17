@@ -13,7 +13,7 @@ struct SignUpView: View {
     @EnvironmentObject var authViewModel: AuthViewModel
     @EnvironmentObject var jobStore: JobStore
     @Binding var path: NavigationPath
-    let role: UserRole  // Passed in when creating the view
+    let role: UserRole
 
     // Form fields
     @State private var firstName = ""
@@ -25,17 +25,22 @@ struct SignUpView: View {
     @State private var email = ""
     @State private var password = ""
 
-    // ✅ New fields for worker characteristics
+    // Worker fields
     let allSkills = ["Cashier", "Delivery Driver", "Stock Replenisher", "Waiter", "Cook/Chef"]
     @State private var selectedSkills: Set<String> = []
     @State private var hasDrivingLicense = false
-    
-    // New Field for Business Charecteristics
+
+    // Business fields
     @State private var requiredSkills: Set<String> = []
     @State private var requiresDrivingLicense = false
 
+    // State
     @State private var errorMessage: String?
+    @State private var emailError: String?
+    @State private var passwordError: String?
     @State private var isLoading = false
+    @State private var showErrorAlert = false
+    @FocusState private var emailFieldFocused: Bool
 
     var isFormValid: Bool {
         !firstName.isEmpty &&
@@ -45,108 +50,236 @@ struct SignUpView: View {
         !country.isEmpty &&
         !mobileNumber.isEmpty &&
         !email.isEmpty &&
-        !password.isEmpty
+        !password.isEmpty &&
+        isValidEmail(email.trimmingCharacters(in: .whitespaces)) &&
+        password.count >= 6
     }
 
     var body: some View {
-        ScrollView {
-            VStack(spacing: 20) {
-                Text("\(role == .worker ? "Worker" : "Business") Sign Up")
-                    .font(.largeTitle)
-                    .bold()
+        ZStack {
+            // Background gradient
+            LinearGradient(
+                gradient: Gradient(colors: [Color(red: 0.7, green: 0.85, blue: 1.0), Color(red: 0.85, green: 0.9, blue: 1.0)]),
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+            .ignoresSafeArea()
 
-                Group {
-                    TextField("First Name", text: $firstName)
-                    TextField("Last Name", text: $lastName)
-                    TextField("Address", text: $address)
-                    TextField("Post Code", text: $postCode)
-                    TextField("Country", text: $country)
-                    TextField("Mobile Number", text: $mobileNumber)
-                        .keyboardType(.phonePad)
-                    TextField("Email", text: $email)
-                        .keyboardType(.emailAddress)
-                        .autocapitalization(.none)
-                    SecureField("Password", text: $password)
-                }
-                .textFieldStyle(RoundedBorderTextFieldStyle())
+            VStack(spacing: 0) {
+                ScrollView {
+                    VStack(spacing: 0) {
+                        // Form fields
+                        VStack(spacing: 14) {
+                            styledTextField("First Name", text: $firstName)
+                        styledTextField("Last Name", text: $lastName)
+                        styledTextField("Address", text: $address)
+                        styledTextField("Post Code", text: $postCode)
+                        styledTextField("Country", text: $country)
+                        styledTextField("Mobile Number", text: $mobileNumber, keyboard: .phonePad)
 
-                // ✅ Worker-specific fields
-                if role == .worker {
-                    Section(header: Text("Worker Details")) {
-                        VStack(alignment: .leading) {
-                            Text("Skills").font(.subheadline).foregroundColor(.gray)
-                            ForEach(allSkills, id: \.self) { skill in
-                                SignUpMultipleSelectionRow(title: skill, isSelected: selectedSkills.contains(skill)) {
-                                    if selectedSkills.contains(skill) {
-                                        selectedSkills.remove(skill)
-                                    } else {
-                                        selectedSkills.insert(skill)
-                                    }
+                        // Email with validation
+                        VStack(spacing: 4) {
+                            TextField("", text: $email, prompt: Text("Email").foregroundColor(.gray.opacity(0.7)))
+                                .padding()
+                                .background(Color.white.opacity(0.85))
+                                .cornerRadius(12)
+                                .foregroundColor(.black)
+                                .keyboardType(.emailAddress)
+                                .autocapitalization(.none)
+                                .disableAutocorrection(true)
+                                .focused($emailFieldFocused)
+                                .onChange(of: email) { _ in emailError = nil }
+                                .onChange(of: emailFieldFocused) { focused in
+                                    if !focused { validateEmail() }
                                 }
+                                .onSubmit { validateEmail() }
+
+                            if let emailError = emailError {
+                                HStack {
+                                    Text(emailError)
+                                        .foregroundColor(.red)
+                                        .font(.caption)
+                                    Spacer()
+                                }
+                                .padding(.horizontal, 4)
                             }
                         }
 
-                        Toggle("Has Driving License", isOn: $hasDrivingLicense)
-                    }
-                }
-                // ✅ Business-specific fields
-                if role == .business {
-                    Section(header: Text("What are you looking for?")) {
-                        VStack(alignment: .leading) {
-                            Text("Required Skills")
-                                .font(.subheadline)
-                                .foregroundColor(.gray)
+                        // Password with validation
+                        VStack(spacing: 4) {
+                            SecureField("", text: $password, prompt: Text("Password (min 6 characters)").foregroundColor(.gray.opacity(0.7)))
+                                .padding()
+                                .background(Color.white.opacity(0.85))
+                                .cornerRadius(12)
+                                .foregroundColor(.black)
+                                .onChange(of: password) { _ in passwordError = nil }
 
-                            ForEach(allSkills, id: \.self) { skill in
-                                SignUpMultipleSelectionRow(
-                                    title: skill,
-                                    isSelected: requiredSkills.contains(skill)
-                                ) {
-                                    if requiredSkills.contains(skill) {
-                                        requiredSkills.remove(skill)
-                                    } else {
-                                        requiredSkills.insert(skill)
-                                    }
+                            if let passwordError = passwordError {
+                                HStack {
+                                    Text(passwordError)
+                                        .foregroundColor(.red)
+                                        .font(.caption)
+                                    Spacer()
                                 }
+                                .padding(.horizontal, 4)
                             }
                         }
-
-                        Toggle("Requires Driving License", isOn: $requiresDrivingLicense)
                     }
-                }
+                    .padding(.horizontal, 28)
 
-                if let errorMessage = errorMessage {
-                    Text(errorMessage)
-                        .foregroundColor(.red)
-                        .multilineTextAlignment(.center)
-                }
-                
-                
+                    // Role-specific sections
+                    if role == .worker {
+                        workerDetailsSection
+                    }
 
-                Button {
-                    hideKeyboard()
-                    signUp()
-                } label: {
-                    if isLoading {
-                        ProgressView()
-                            .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                    } else {
+                    if role == .business {
+                        businessDetailsSection
+                    }
+
+                    // Create Account button
+                    Button {
+                        hideKeyboard()
+                        signUp()
+                    } label: {
                         Text("Create Account")
+                            .font(.headline)
                             .bold()
+                            .frame(maxWidth: .infinity)
+                            .padding()
+                            .background(isFormValid ? Color(red: 0.2, green: 0.4, blue: 0.8) : Color(red: 0.2, green: 0.4, blue: 0.8).opacity(0.4))
+                            .foregroundColor(.white)
+                            .cornerRadius(12)
                     }
+                    .disabled(!isFormValid || isLoading)
+                    .padding(.horizontal, 28)
+                    .padding(.top, 24)
+                    .padding(.bottom, 40)
                 }
-                .disabled(!isFormValid || isLoading)
-                .padding()
-                .frame(maxWidth: .infinity)
-                .background(isFormValid ? Color.blue : Color.gray)
-                .foregroundColor(.white)
-                .cornerRadius(10)
-
-                Spacer()
             }
-            .padding()
+            .contentMargins(.top, 24)
+            .scrollDismissesKeyboard(.interactively)
+            }
+
+            // Loading overlay
+            if isLoading {
+                Color.black.opacity(0.3)
+                    .ignoresSafeArea()
+
+                ProgressView("Creating account...")
+                    .padding(24)
+                    .background(Color.white)
+                    .cornerRadius(12)
+                    .shadow(radius: 10)
+            }
+        }
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .principal) {
+                Text("\(role == .worker ? "Worker" : "Business") Sign Up")
+                    .font(.system(size: 20, weight: .bold))
+                    .foregroundColor(Color(red: 0.12, green: 0.15, blue: 0.3))
+            }
+        }
+        .alert("Sign Up Failed", isPresented: $showErrorAlert) {
+            Button("Ok", role: .cancel) { }
+        } message: {
+            Text(errorMessage ?? "An unknown error occurred.")
         }
     }
+
+    // MARK: - Worker Details Section
+
+    private var workerDetailsSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Skills")
+                .font(.headline)
+                .foregroundColor(Color(red: 0.12, green: 0.15, blue: 0.3))
+
+            VStack(spacing: 8) {
+                ForEach(allSkills, id: \.self) { skill in
+                    SignUpMultipleSelectionRow(title: skill, isSelected: selectedSkills.contains(skill)) {
+                        if selectedSkills.contains(skill) {
+                            selectedSkills.remove(skill)
+                        } else {
+                            selectedSkills.insert(skill)
+                        }
+                    }
+                }
+            }
+            .padding()
+            .background(Color.white.opacity(0.85))
+            .cornerRadius(12)
+
+            Toggle("Has Driving License", isOn: $hasDrivingLicense)
+                .padding()
+                .background(Color.white.opacity(0.85))
+                .cornerRadius(12)
+                .tint(Color(red: 0.2, green: 0.4, blue: 0.8))
+        }
+        .padding(.horizontal, 28)
+        .padding(.top, 20)
+    }
+
+    // MARK: - Business Details Section
+
+    private var businessDetailsSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("What are you looking for?")
+                .font(.headline)
+                .foregroundColor(Color(red: 0.12, green: 0.15, blue: 0.3))
+
+            VStack(spacing: 8) {
+                ForEach(allSkills, id: \.self) { skill in
+                    SignUpMultipleSelectionRow(title: skill, isSelected: requiredSkills.contains(skill)) {
+                        if requiredSkills.contains(skill) {
+                            requiredSkills.remove(skill)
+                        } else {
+                            requiredSkills.insert(skill)
+                        }
+                    }
+                }
+            }
+            .padding()
+            .background(Color.white.opacity(0.85))
+            .cornerRadius(12)
+
+            Toggle("Requires Driving License", isOn: $requiresDrivingLicense)
+                .padding()
+                .background(Color.white.opacity(0.85))
+                .cornerRadius(12)
+                .tint(Color(red: 0.2, green: 0.4, blue: 0.8))
+        }
+        .padding(.horizontal, 28)
+        .padding(.top, 20)
+    }
+
+    // MARK: - Styled TextField Helper
+
+    private func styledTextField(_ placeholder: String, text: Binding<String>, keyboard: UIKeyboardType = .default) -> some View {
+        TextField("", text: text, prompt: Text(placeholder).foregroundColor(.gray.opacity(0.7)))
+            .padding()
+            .background(Color.white.opacity(0.85))
+            .cornerRadius(12)
+            .foregroundColor(.black)
+            .keyboardType(keyboard)
+    }
+
+    // MARK: - Validation
+
+    private func validateEmail() {
+        let trimmed = email.trimmingCharacters(in: .whitespaces)
+        if trimmed.isEmpty { return }
+        if !isValidEmail(trimmed) {
+            emailError = "Please enter a valid email address"
+        }
+    }
+
+    private func isValidEmail(_ email: String) -> Bool {
+        let pattern = #"^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$"#
+        return email.range(of: pattern, options: .regularExpression) != nil
+    }
+
+    // MARK: - Sign Up
 
     private func signUp() {
         isLoading = true
@@ -156,20 +289,26 @@ struct SignUpView: View {
         let trimmedPassword = password.trimmingCharacters(in: .whitespaces)
 
         Auth.auth().createUser(withEmail: trimmedEmail, password: trimmedPassword) { result, error in
-            DispatchQueue.main.async { self.isLoading = false }
-
             if let error = error {
-                DispatchQueue.main.async { self.errorMessage = "Signup failed: \(error.localizedDescription)" }
+                DispatchQueue.main.async {
+                    self.isLoading = false
+                    self.errorMessage = error.localizedDescription
+                    self.showErrorAlert = true
+                }
                 return
             }
 
             guard let uid = result?.user.uid else {
-                DispatchQueue.main.async { self.errorMessage = "Unable to get user ID" }
+                DispatchQueue.main.async {
+                    self.isLoading = false
+                    self.errorMessage = "Unable to get user ID"
+                    self.showErrorAlert = true
+                }
                 return
             }
 
             let db = Firestore.firestore()
-           var userData: [String: Any] = [
+            var userData: [String: Any] = [
                 "firstName": firstName,
                 "lastName": lastName,
                 "address": address,
@@ -180,12 +319,11 @@ struct SignUpView: View {
                 "role": role.rawValue
             ]
 
-            // ✅ Include worker characteristics if role is worker
             if role == .worker {
                 userData["skills"] = Array(selectedSkills)
                 userData["hasDrivingLicense"] = hasDrivingLicense
             }
-            
+
             if role == .business {
                 userData["requiredSkills"] = Array(requiredSkills)
                 userData["requiresDrivingLicense"] = requiresDrivingLicense
@@ -193,11 +331,16 @@ struct SignUpView: View {
 
             db.collection("users").document(uid).setData(userData) { error in
                 if let error = error {
-                    DispatchQueue.main.async { self.errorMessage = "Error saving user data: \(error.localizedDescription)" }
+                    DispatchQueue.main.async {
+                        self.isLoading = false
+                        self.errorMessage = error.localizedDescription
+                        self.showErrorAlert = true
+                    }
                     return
                 }
 
                 DispatchQueue.main.async {
+                    self.isLoading = false
                     self.authViewModel.user = result?.user
                     self.authViewModel.userRole = role
                     self.jobStore.startListeners(for: uid, userRole: role.rawValue)
@@ -219,7 +362,8 @@ struct SignUpView: View {
     }
 }
 
-// ✅ Helper view for multi-select skills
+// MARK: - Multi-select Row
+
 struct SignUpMultipleSelectionRow: View {
     let title: String
     let isSelected: Bool
@@ -228,10 +372,15 @@ struct SignUpMultipleSelectionRow: View {
     var body: some View {
         Button(action: action) {
             HStack {
-                Text(title).foregroundColor(.primary)
+                Text(title)
+                    .foregroundColor(Color(red: 0.12, green: 0.15, blue: 0.3))
                 Spacer()
                 if isSelected {
-                    Image(systemName: "checkmark").foregroundColor(.blue)
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundColor(Color(red: 0.2, green: 0.4, blue: 0.8))
+                } else {
+                    Image(systemName: "circle")
+                        .foregroundColor(.gray.opacity(0.5))
                 }
             }
         }

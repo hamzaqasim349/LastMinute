@@ -27,6 +27,12 @@ struct SignUpView: View {
 
     // Worker fields
     let allSkills = ["Cashier", "Delivery Driver", "Stock Replenisher", "Waiter", "Cook/Chef"]
+
+    let countryList: [String] = {
+        Locale.isoRegionCodes.compactMap { code in
+            Locale.current.localizedString(forRegionCode: code)
+        }.sorted()
+    }()
     @State private var selectedSkills: Set<String> = []
     @State private var hasDrivingLicense = false
 
@@ -40,6 +46,8 @@ struct SignUpView: View {
     @State private var passwordError: String?
     @State private var isLoading = false
     @State private var showErrorAlert = false
+    @State private var showCountryPicker = false
+    @State private var countrySearch = ""
     @FocusState private var emailFieldFocused: Bool
 
     var isFormValid: Bool {
@@ -53,6 +61,13 @@ struct SignUpView: View {
         !password.isEmpty &&
         isValidEmail(email.trimmingCharacters(in: .whitespaces)) &&
         password.count >= 6
+    }
+
+    var filteredCountries: [String] {
+        if countrySearch.isEmpty {
+            return countryList
+        }
+        return countryList.filter { $0.localizedCaseInsensitiveContains(countrySearch) }
     }
 
     var body: some View {
@@ -74,7 +89,71 @@ struct SignUpView: View {
                         styledTextField("Last Name", text: $lastName)
                         styledTextField("Address", text: $address)
                         styledTextField("Post Code", text: $postCode)
-                        styledTextField("Country", text: $country)
+
+                        // Country picker
+                        VStack(spacing: 0) {
+                            Button {
+                                withAnimation {
+                                    showCountryPicker.toggle()
+                                }
+                            } label: {
+                                HStack {
+                                    Text(country.isEmpty ? "Country" : country)
+                                        .foregroundColor(country.isEmpty ? .gray.opacity(0.7) : .black)
+                                    Spacer()
+                                    Image(systemName: showCountryPicker ? "chevron.up" : "chevron.down")
+                                        .foregroundColor(.gray.opacity(0.7))
+                                }
+                                .padding()
+                                .background(Color.white.opacity(0.85))
+                                .cornerRadius(12)
+                            }
+
+                            if showCountryPicker {
+                                VStack(spacing: 0) {
+                                    // Search bar
+                                    TextField("", text: $countrySearch, prompt: Text("Search country").foregroundColor(.gray.opacity(0.7)))
+                                        .padding(10)
+                                        .background(Color.white)
+                                        .cornerRadius(8)
+                                        .foregroundColor(.black)
+                                        .padding(.horizontal, 8)
+                                        .padding(.top, 8)
+
+                                    ScrollView {
+                                        VStack(spacing: 0) {
+                                            ForEach(filteredCountries, id: \.self) { c in
+                                                Button {
+                                                    country = c
+                                                    countrySearch = ""
+                                                    withAnimation {
+                                                        showCountryPicker = false
+                                                    }
+                                                } label: {
+                                                    HStack {
+                                                        Text(c)
+                                                            .foregroundColor(.black)
+                                                        Spacer()
+                                                        if c == country {
+                                                            Image(systemName: "checkmark")
+                                                                .foregroundColor(Color(red: 0.2, green: 0.4, blue: 0.8))
+                                                        }
+                                                    }
+                                                    .padding(.horizontal)
+                                                    .padding(.vertical, 10)
+                                                }
+                                                Divider()
+                                            }
+                                        }
+                                    }
+                                }
+                                .frame(maxHeight: 200)
+                                .background(Color.white.opacity(0.9))
+                                .cornerRadius(12)
+                                .padding(.top, 4)
+                            }
+                        }
+
                         styledTextField("Mobile Number", text: $mobileNumber, keyboard: .phonePad)
 
                         // Email with validation

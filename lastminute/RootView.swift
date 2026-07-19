@@ -77,6 +77,7 @@ struct RootView: View {
                 case .newPost:
                     bPostNewJobForm(path: $path)
                         .environmentObject(jobStore)
+                        .id(UUID())
                 case .postSuccess:
                     JobPostedSuccessView(path: $path)
                         .environmentObject(jobStore)

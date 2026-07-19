@@ -20,168 +20,245 @@ struct bPostNewJobForm: View {
     @Binding var path: NavigationPath
 
     @State private var isPosting = false
+    @State private var showErrorAlert = false
+    @State private var errorMessage = ""
 
     let allSkills = ["Cashier", "Delivery Driver", "Stock Replenisher", "Waiter", "Cook/Chef"]
     @State private var selectedSkills: Set<String> = []
     @State private var requiresDrivingLicense = false
+
+    private let accentBlue = Color(red: 0.2, green: 0.4, blue: 0.8)
 
     var formIsValid: Bool {
         !jobTitle.isEmpty && !location.isEmpty && !pay.isEmpty && !selectedSkills.isEmpty
     }
 
     var body: some View {
-        Form {
+        ZStack {
+            // Background
+            Color(red: 0.92, green: 0.95, blue: 1.0)
+                .ignoresSafeArea()
 
-            // -------------------------
-            // Job Info Section
-            // -------------------------
-            Section(header: Text("Job Info")) {
-                TextField("Job Title", text: $jobTitle)
-                TextField("Location", text: $location)
+            ScrollView {
+                VStack(spacing: 20) {
 
-                HStack {
-                    TextField("Pay", text: $pay)
-                        .keyboardType(.decimalPad)
-                    Text("£/hr").foregroundColor(.gray)
-                }
+                    // Job Info Section
+                    VStack(alignment: .leading, spacing: 14) {
+                        sectionHeader("Job Info")
 
-                DatePicker("Date", selection: $selectedDate, displayedComponents: .date)
-                DatePicker("Time", selection: $selectedTime, displayedComponents: .hourAndMinute)
-            }
+                        styledField("Job Title", text: $jobTitle)
+                        styledField("Address", text: $location)
 
-            // -------------------------
-            // Skills + Requirements
-            // -------------------------
-            Section(header: Text("Job Requirements")) {
-
-                Text("Required Skills")
-                    .font(.subheadline)
-                    .foregroundColor(.gray)
-
-                ForEach(allSkills, id: \.self) { skill in
-                    bPostJobFormMultipleSelectionRow(
-                        title: skill,
-                        isSelected: Binding(
-                            get: { selectedSkills.contains(skill) },
-                            set: { newValue in
-                                if newValue {
-                                    selectedSkills.insert(skill)
-                                } else {
-                                    selectedSkills.remove(skill)
+                        // Pay field with currency
+                        HStack(spacing: 0) {
+                            TextField("", text: $pay, prompt: Text("Pay").foregroundColor(.gray.opacity(0.7)))
+                                .keyboardType(.decimalPad)
+                                .foregroundColor(.black)
+                                .padding()
+                                .onChange(of: pay) { newValue in
+                                    let filtered = newValue.filter { $0.isNumber || $0 == "." }
+                                    if filtered != newValue {
+                                        pay = filtered
+                                    }
                                 }
-                            }
-                        )
-                    )
-                }
 
-                Toggle("Requires Driving License", isOn: $requiresDrivingLicense)
-            }
+                            Text("£/hr")
+                                .foregroundColor(.gray)
+                                .padding(.trailing, 16)
+                        }
+                        .background(Color.white)
+                        .cornerRadius(12)
 
-            // -------------------------
-            // Post Button
-            // -------------------------
-            Button(action: {
-                guard !isPosting && formIsValid else { return }
+                        // Date & Time
+                        VStack(spacing: 10) {
+                            DatePicker("Date", selection: $selectedDate, displayedComponents: .date)
+                                .padding()
+                                .background(Color.white)
+                                .cornerRadius(12)
 
-                isPosting = true
-
-                let skillsCopy = Array(selectedSkills)
-                let requiresLicenseCopy = requiresDrivingLicense
-                let titleCopy = jobTitle
-                let locationCopy = location
-                let payCopy = pay
-                let dateCopy = selectedDate
-                let timeCopy = selectedTime
-                let latitude: Double = 51.5074
-                let longitude: Double = -0.1278
-
-                let geoPoint = GeoPoint(latitude: latitude, longitude: longitude)
-
-                let combinedDate = combine(date: dateCopy, time: timeCopy)
-
-                print("Posting Job with skills: \(skillsCopy), requiresDrivingLicense: \(requiresLicenseCopy)")
-
-                let newJob = Job(
-                    id: "",
-                    title: titleCopy,
-                    location: locationCopy,
-                    pay: payCopy,
-                    date: combinedDate,
-                    time: formattedTime(combinedDate),
-                    postedBy: "",
-                    status: "open",
-                    geoLocation: geoPoint,
-                    requiredSkills: skillsCopy,
-                    requiresDrivingLicense: requiresLicenseCopy
-                    
-                )
-
-                jobStore.addJob(newJob) { error in
-                    DispatchQueue.main.async {
-                        isPosting = false
-                        if let error = error {
-                            print("Error posting job: \(error.localizedDescription)")
-                        } else {
-                            path.append(BusinessRoute.postSuccess)
+                            DatePicker("Time", selection: $selectedTime, displayedComponents: .hourAndMinute)
+                                .padding()
+                                .background(Color.white)
+                                .cornerRadius(12)
                         }
                     }
+                    .padding(.horizontal, 20)
+
+                    // Requirements Section
+                    VStack(alignment: .leading, spacing: 14) {
+                        sectionHeader("Job Requirements")
+
+                        Text("Required Skills")
+                            .font(.subheadline)
+                            .foregroundColor(.gray)
+                            .padding(.horizontal, 4)
+
+                        VStack(spacing: 8) {
+                            ForEach(allSkills, id: \.self) { skill in
+                                Button {
+                                    if selectedSkills.contains(skill) {
+                                        selectedSkills.remove(skill)
+                                    } else {
+                                        selectedSkills.insert(skill)
+                                    }
+                                } label: {
+                                    HStack {
+                                        Text(skill)
+                                            .foregroundColor(Color(red: 0.12, green: 0.15, blue: 0.3))
+                                        Spacer()
+                                        if selectedSkills.contains(skill) {
+                                            Image(systemName: "checkmark.circle.fill")
+                                                .foregroundColor(accentBlue)
+                                        } else {
+                                            Image(systemName: "circle")
+                                                .foregroundColor(.gray.opacity(0.5))
+                                        }
+                                    }
+                                    .padding(.vertical, 6)
+                                }
+                            }
+                        }
+                        .padding()
+                        .background(Color.white)
+                        .cornerRadius(12)
+
+                        Toggle("Requires Driving License", isOn: $requiresDrivingLicense)
+                            .padding()
+                            .background(Color.white)
+                            .cornerRadius(12)
+                            .tint(accentBlue)
+                    }
+                    .padding(.horizontal, 20)
+
+                    // Post Button
+                    Button {
+                        postJob()
+                    } label: {
+                        Text("Post Job")
+                            .font(.headline)
+                            .bold()
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 16)
+                            .background(formIsValid ? accentBlue : accentBlue.opacity(0.4))
+                            .foregroundColor(.white)
+                            .cornerRadius(12)
+                    }
+                    .disabled(!formIsValid || isPosting)
+                    .padding(.horizontal, 20)
+                    .padding(.top, 8)
+                    .padding(.bottom, 30)
                 }
-
-            }) {
-                Text("Post Job")
+                .padding(.top, 16)
             }
-            .disabled(!formIsValid || isPosting)
+            .scrollDismissesKeyboard(.interactively)
 
-        } // END FORM
-        .navigationTitle("New Job")
+            // Loading overlay
+            if isPosting {
+                Color.black.opacity(0.3)
+                    .ignoresSafeArea()
+
+                ProgressView("Posting job...")
+                    .padding(24)
+                    .background(Color.white)
+                    .cornerRadius(12)
+                    .shadow(radius: 10)
+            }
+        }
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .principal) {
+                Text("New Job")
+                    .font(.system(size: 20, weight: .bold))
+                    .foregroundColor(Color(red: 0.12, green: 0.15, blue: 0.3))
+            }
+        }
+        .alert("Error", isPresented: $showErrorAlert) {
+            Button("Ok", role: .cancel) { }
+        } message: {
+            Text(errorMessage)
+        }
     }
-}
 
+    // MARK: - Helpers
 
-    func combine(date: Date, time: Date) -> Date {
-        let calendar = Calendar.current
-        var components = calendar.dateComponents([.year, .month, .day], from: date)
-        let timeComponents = calendar.dateComponents([.hour, .minute], from: time)
-        components.hour = timeComponents.hour
-        components.minute = timeComponents.minute
-        return calendar.date(from: components) ?? Date()
+    private func sectionHeader(_ title: String) -> some View {
+        Text(title)
+            .font(.headline)
+            .foregroundColor(Color(red: 0.12, green: 0.15, blue: 0.3))
     }
 
-    func formattedTime(_ date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.timeStyle = .short
-        return formatter.string(from: date)
+    private func styledField(_ placeholder: String, text: Binding<String>) -> some View {
+        TextField("", text: text, prompt: Text(placeholder).foregroundColor(.gray.opacity(0.7)))
+            .padding()
+            .background(Color.white)
+            .cornerRadius(12)
+            .foregroundColor(.black)
     }
 
+    // MARK: - Post Job
 
-// ✅ Helper view for multi-select skills
-struct bPostJobFormMultipleSelectionRow: View {
-    let title: String
-    @Binding var isSelected: Bool     // ✅ Now a Binding
+    private func postJob() {
+        guard !isPosting && formIsValid else { return }
 
-    var body: some View {
-        Button {
-            isSelected.toggle()        // ✅ No action parameter needed
-        } label: {
-            HStack {
-                Text(title)
-                    .foregroundColor(.primary)
-                Spacer()
-                if isSelected {
-                    Image(systemName: "checkmark")
-                        .foregroundColor(.blue)
+        isPosting = true
+
+        let skillsCopy = Array(selectedSkills)
+        let requiresLicenseCopy = requiresDrivingLicense
+        let titleCopy = jobTitle
+        let locationCopy = location
+        let payCopy = pay
+        let dateCopy = selectedDate
+        let timeCopy = selectedTime
+        let latitude: Double = 51.5074
+        let longitude: Double = -0.1278
+
+        let geoPoint = GeoPoint(latitude: latitude, longitude: longitude)
+        let combinedDate = combine(date: dateCopy, time: timeCopy)
+
+        let newJob = Job(
+            id: "",
+            title: titleCopy,
+            location: locationCopy,
+            pay: payCopy,
+            date: combinedDate,
+            time: formattedTime(combinedDate),
+            postedBy: "",
+            status: "open",
+            geoLocation: geoPoint,
+            requiredSkills: skillsCopy,
+            requiresDrivingLicense: requiresLicenseCopy
+        )
+
+        jobStore.addJob(newJob) { error in
+            DispatchQueue.main.async {
+                isPosting = false
+                if let error = error {
+                    errorMessage = error.localizedDescription
+                    showErrorAlert = true
+                } else {
+                    path.append(BusinessRoute.postSuccess)
                 }
             }
         }
-        .padding(.vertical, 4)
     }
 }
 
+func combine(date: Date, time: Date) -> Date {
+    let calendar = Calendar.current
+    var components = calendar.dateComponents([.year, .month, .day], from: date)
+    let timeComponents = calendar.dateComponents([.hour, .minute], from: time)
+    components.hour = timeComponents.hour
+    components.minute = timeComponents.minute
+    return calendar.date(from: components) ?? Date()
+}
 
+func formattedTime(_ date: Date) -> String {
+    let formatter = DateFormatter()
+    formatter.timeStyle = .short
+    return formatter.string(from: date)
+}
 
 #Preview {
     bPostNewJobForm(path: .constant(NavigationPath()))
         .environmentObject(JobStore())
 }
-
-

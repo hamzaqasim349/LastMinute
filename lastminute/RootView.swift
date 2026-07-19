@@ -11,13 +11,15 @@ struct RootView: View {
     @EnvironmentObject var jobStore: JobStore
     @State private var path = NavigationPath()
     @State private var profileImage: Image? = nil
+    @State private var navigationID = UUID()
     
     var body: some View {
         NavigationStack(path: $path) {
             Group {
                 switch authViewModel.currentScreen {
                 case .login:
-                    loginScreen
+                    LogInView()
+                        .environmentObject(authViewModel)
                 case .signUpChoice:
                     SignUpChoiceView(path: $path)
                         .environmentObject(authViewModel)
@@ -41,6 +43,17 @@ struct RootView: View {
                 case .loading:
                     ProgressView("Loading…")
                     
+                }
+            }
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    if authViewModel.currentScreen == .login {
+                        Button("Sign Up") {
+                            path.append(SignUpRoute.choice)
+                        }
+                        .font(.subheadline.bold())
+                        .foregroundColor(Color(red: 0.2, green: 0.4, blue: 0.8))
+                    }
                 }
             }
             // Navigation destinations for SignUpRoute
@@ -99,6 +112,7 @@ struct RootView: View {
                 }
             }
         }
+        .id(navigationID)
         .onChange(of: authViewModel.currentScreen) { _, newScreen in
             updatePath(for: newScreen)
         }
@@ -119,6 +133,8 @@ struct RootView: View {
         path = NavigationPath() // reset path
         
         switch screen {
+        case .login:
+            navigationID = UUID() // force full NavigationStack rebuild after logout
         case .workerDashboard:
             guard let uid = authViewModel.user?.uid else { return }
             path.append(SignUpRoute.workerDashboard(userID: uid))
@@ -129,18 +145,4 @@ struct RootView: View {
         }
     }
     
-    // MARK: - Login screen with sign up button
-    private var loginScreen: some View {
-        LogInView()
-            .environmentObject(authViewModel)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Sign Up") {
-                        path.append(SignUpRoute.choice)
-                    }
-                    .font(.subheadline.bold())
-                    .foregroundColor(Color(red: 0.2, green: 0.4, blue: 0.8))
-                }
-            }
-    }
 }

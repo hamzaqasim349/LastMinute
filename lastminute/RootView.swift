@@ -91,6 +91,11 @@ struct RootView: View {
                        bizProfileView(profileImage: $profileImage)
                            .environmentObject(authViewModel)
                            .environmentObject(jobStore)
+                case .jobDetail(let jobID):
+                    if let job = jobStore.businessadvertisedJobs.first(where: { $0.id == jobID }) ?? jobStore.businessAcceptedJobs.first(where: { $0.id == jobID }) {
+                        JobDetailView(job: job)
+                            .environmentObject(jobStore)
+                    }
                 }
             }
         }

@@ -14,6 +14,7 @@ enum BusinessRoute: Hashable {
     case advertisedJobs
     case jobHistory
     case profile
+    case jobDetail(String) // job ID
 }
 
 struct MainViewBusiness: View {
@@ -206,37 +207,88 @@ private extension MainViewBusiness {
     }
 
     var advertisedJobsView: some View {
-        VStack(spacing: 16) {
-            Spacer()
-
-            Image(systemName: "megaphone")
-                .font(.system(size: 50))
-                .foregroundColor(accentBlue)
-
-            Text("Your advertised jobs")
-                .font(.headline)
-                .foregroundColor(Color(red: 0.15, green: 0.15, blue: 0.2))
-
-            Text("Manage candidates and active posts")
-                .font(.subheadline)
-                .foregroundColor(.gray)
-
-            Button {
-                path.append(BusinessRoute.advertisedJobs)
-            } label: {
-                Text("View Jobs")
-                    .bold()
-                    .frame(maxWidth: 180)
-                    .padding(.vertical, 12)
-                    .background(accentBlue)
-                    .foregroundColor(.white)
-                    .cornerRadius(10)
+        VStack(spacing: 0) {
+            // Header
+            HStack {
+                Text("Your advertised jobs")
+                    .font(.headline)
+                    .foregroundColor(Color(red: 0.12, green: 0.15, blue: 0.3))
+                Spacer()
+                Button {
+                    path.append(BusinessRoute.advertisedJobs)
+                } label: {
+                    Text("View All")
+                        .font(.subheadline.bold())
+                        .foregroundColor(accentBlue)
+                }
             }
-            .padding(.top, 4)
+            .padding(.horizontal, 16)
+            .padding(.top, 16)
+            .padding(.bottom, 12)
 
-            Spacer()
+            if jobStore.businessadvertisedJobs.isEmpty {
+                Spacer()
+                Image(systemName: "megaphone")
+                    .font(.system(size: 40))
+                    .foregroundColor(.gray.opacity(0.4))
+                Text("No advertised jobs yet")
+                    .font(.subheadline)
+                    .foregroundColor(.gray)
+                    .padding(.top, 8)
+                Spacer()
+            } else {
+                ScrollView {
+                    LazyVStack(spacing: 12) {
+                        ForEach(jobStore.businessadvertisedJobs) { job in
+                            Button {
+                                path.append(BusinessRoute.jobDetail(job.id))
+                            } label: {
+                                advertisedJobCard(job)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.bottom, 16)
+                }
+            }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    private func advertisedJobCard(_ job: Job) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(job.title)
+                .font(.subheadline.bold())
+                .foregroundColor(Color(red: 0.12, green: 0.15, blue: 0.3))
+
+            HStack(spacing: 12) {
+                Label(job.location, systemImage: "mappin.circle.fill")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+
+                Label("\(job.pay) /hr", systemImage: "sterlingsign.circle.fill")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+
+            HStack(spacing: 12) {
+                Label(job.time, systemImage: "clock")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+
+                if let candidates = job.candidates, !candidates.isEmpty {
+                    Label("\(candidates.count) applied", systemImage: "person.2.fill")
+                        .font(.caption)
+                        .foregroundColor(accentBlue)
+                }
+            }
+        }
+        .padding(14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.white)
+        .cornerRadius(12)
+        .shadow(color: .black.opacity(0.04), radius: 3, x: 0, y: 2)
     }
 
     var jobHistoryView: some View {

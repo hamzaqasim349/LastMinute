@@ -72,25 +72,24 @@ struct MainViewBusiness: View {
         .navigationTitle("Dashboard")
         .navigationBarBackButtonHidden(true)
         .toolbar {
-            ToolbarItem(placement: .navigationBarTrailing) {
-                HStack(spacing: 16) {
-                    Button {
-                        path.append(BusinessRoute.profile)
-                    } label: {
-                        Image(systemName: "person.crop.circle.fill")
-                            .font(.system(size: 28))
-                            .foregroundColor(.blue)
-                    }
-
-                    Button {
-                        authViewModel.signOut()
-                    } label: {
-                        Image(systemName: "rectangle.portrait.and.arrow.right")
-                            .font(.system(size: 18))
-                            .foregroundColor(.red.opacity(0.8))
-                    }
-                    .accessibilityLabel("Sign Out")
+            ToolbarItem(placement: .navigationBarLeading) {
+                Button {
+                    path.append(BusinessRoute.profile)
+                } label: {
+                    Image(systemName: "person.fill")
+                        .font(.system(size: 24))
+                        .foregroundColor(accentBlue)
                 }
+            }
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button {
+                    authViewModel.signOut()
+                } label: {
+                    Image(systemName: "rectangle.portrait.and.arrow.right")
+                        .font(.system(size: 18))
+                        .foregroundColor(.red.opacity(0.8))
+                }
+                .accessibilityLabel("Sign Out")
             }
         }
         .onAppear {

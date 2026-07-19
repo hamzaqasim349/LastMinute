@@ -13,71 +13,101 @@ struct AdvertisedJobsView: View {
     let isWorkerView: Bool
     let currentCandidate: Candidate?
 
+    private let accentBlue = Color(red: 0.2, green: 0.4, blue: 0.8)
+
     var body: some View {
-        List {
-            if isWorkerView {
-                if jobStore.businessadvertisedJobs.isEmpty {
-                    Text("No jobs currently advertised.")
-                        .foregroundColor(.gray)
-                        .italic()
-                } else {
-                    ForEach(jobStore.businessadvertisedJobs) { job in
-                        JobRowView(
-                            job: job,
-                            isWorkerView: true,
-                            currentCandidate: currentCandidate
-                        )
-                        .environmentObject(jobStore)
-                        .listRowBackground(Color.clear)
-                        .listRowSeparator(.hidden)
-                        .listRowInsets(EdgeInsets())
-                    }
-                }
-            } else {
-                if !jobStore.businessadvertisedJobs.isEmpty {
-                    Section("Open Jobs") {
-                        ForEach(jobStore.businessadvertisedJobs) { job in
-                            JobRowView(
-                                job: job,
-                                isWorkerView: false,
-                                currentCandidate: nil
-                            )
-                            .environmentObject(jobStore)
-                            .listRowBackground(Color.clear)
-                            .listRowSeparator(.hidden)
-                            .listRowInsets(EdgeInsets())
+        ZStack {
+            Color(red: 0.92, green: 0.95, blue: 1.0)
+                .ignoresSafeArea()
+
+            ScrollView {
+                LazyVStack(spacing: 14) {
+                    if isWorkerView {
+                        if jobStore.businessadvertisedJobs.isEmpty {
+                            emptyState(icon: "megaphone", message: "No jobs currently advertised.")
+                        } else {
+                            ForEach(jobStore.businessadvertisedJobs) { job in
+                                JobRowView(
+                                    job: job,
+                                    isWorkerView: true,
+                                    currentCandidate: currentCandidate
+                                )
+                                .environmentObject(jobStore)
+                            }
+                        }
+                    } else {
+                        if !jobStore.businessadvertisedJobs.isEmpty {
+                            sectionHeader("Open Jobs")
+                            ForEach(jobStore.businessadvertisedJobs) { job in
+                                JobRowView(
+                                    job: job,
+                                    isWorkerView: false,
+                                    currentCandidate: nil
+                                )
+                                .environmentObject(jobStore)
+                            }
+                        }
+
+                        if !jobStore.businessAcceptedJobs.isEmpty {
+                            sectionHeader("Accepted Jobs")
+                            ForEach(jobStore.businessAcceptedJobs) { job in
+                                JobRowView(
+                                    job: job,
+                                    isWorkerView: false,
+                                    currentCandidate: nil
+                                )
+                                .environmentObject(jobStore)
+                            }
+                        }
+
+                        if jobStore.businessadvertisedJobs.isEmpty && jobStore.businessAcceptedJobs.isEmpty {
+                            emptyState(icon: "tray", message: "You haven't posted any jobs yet.")
                         }
                     }
                 }
-
-                if !jobStore.businessAcceptedJobs.isEmpty {
-                    Section("Accepted Jobs") {
-                        ForEach(jobStore.businessAcceptedJobs) { job in
-                            JobRowView(
-                                job: job,
-                                isWorkerView: false,
-                                currentCandidate: nil
-                            )
-                            .environmentObject(jobStore)
-                            .listRowBackground(Color.clear)
-                            .listRowSeparator(.hidden)
-                            .listRowInsets(EdgeInsets())
-                        }
-                    }
-                }
-
-                if jobStore.businessadvertisedJobs.isEmpty && jobStore.businessAcceptedJobs.isEmpty {
-                    Text("You haven't posted any jobs yet.")
-                        .foregroundColor(.gray)
-                        .italic()
-                }
+                .padding(.horizontal, 16)
+                .padding(.top, 12)
+                .padding(.bottom, 20)
             }
         }
-        .navigationTitle("Advertised Jobs")
-        .scrollContentBackground(.hidden)
-        .background(Color.white)
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .principal) {
+                Text("Advertised Jobs")
+                    .font(.system(size: 20, weight: .bold))
+                    .foregroundColor(Color(red: 0.12, green: 0.15, blue: 0.3))
+            }
+        }
+    }
+
+    // MARK: - Helpers
+
+    private func sectionHeader(_ title: String) -> some View {
+        HStack {
+            Text(title)
+                .font(.headline)
+                .foregroundColor(Color(red: 0.12, green: 0.15, blue: 0.3))
+            Spacer()
+        }
+        .padding(.top, 8)
+    }
+
+    private func emptyState(icon: String, message: String) -> some View {
+        VStack(spacing: 12) {
+            Spacer(minLength: 80)
+            Image(systemName: icon)
+                .font(.system(size: 44))
+                .foregroundColor(.gray.opacity(0.5))
+            Text(message)
+                .font(.subheadline)
+                .foregroundColor(.gray)
+            Spacer()
+        }
+        .frame(maxWidth: .infinity)
     }
 }
+
+// MARK: - Job Row
 
 struct JobRowView: View {
     @EnvironmentObject var jobStore: JobStore
@@ -86,80 +116,115 @@ struct JobRowView: View {
     let isWorkerView: Bool
     let currentCandidate: Candidate?
 
+    private let accentBlue = Color(red: 0.2, green: 0.4, blue: 0.8)
+
     @State private var remainingTime: TimeInterval = 0
     @State private var timer: Timer? = nil
     @State private var expandedCandidateID: String? = nil
+    @State private var showDeleteAlert = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 10) {
 
-            // Top row with title and delete button
+            // Header: title + delete
             HStack {
                 Text(job.title)
                     .font(.headline)
+                    .foregroundColor(Color(red: 0.12, green: 0.15, blue: 0.3))
 
                 Spacer()
 
                 if !isWorkerView {
                     Button(role: .destructive) {
-                        jobStore.deleteJob(job)
+                        showDeleteAlert = true
                     } label: {
                         Image(systemName: "trash")
-                            .foregroundColor(.red)
+                            .font(.system(size: 16))
+                            .foregroundColor(.red.opacity(0.7))
+                    }
+                    .alert("Delete Job", isPresented: $showDeleteAlert) {
+                        Button("Cancel", role: .cancel) { }
+                        Button("Delete", role: .destructive) {
+                            jobStore.deleteJob(job)
+                        }
+                    } message: {
+                        Text("Are you sure you want to delete this job? This action cannot be undone.")
                     }
                 }
             }
 
-            Text("Location: \(job.location)")
-            Text("Pay: \(job.pay)")
-            Text("Date: \(formattedDate(job.date))")
-            Text("Time: \(job.time)")
+            // Job details
+            VStack(alignment: .leading, spacing: 6) {
+                jobDetailRow(icon: "mappin.circle.fill", text: job.location)
+                jobDetailRow(icon: "sterlingsign.circle.fill", text: "\(job.pay) /hr")
+                jobDetailRow(icon: "calendar", text: formattedDate(job.date))
+                jobDetailRow(icon: "clock", text: job.time)
+            }
 
+            // Expiry timer
             if remainingTime > 0 {
                 let hours = Int(remainingTime) / 3600
                 let minutes = (Int(remainingTime) % 3600) / 60
                 let seconds = Int(remainingTime) % 60
 
-                Text("Expires in: \(hours)h \(minutes)m \(seconds)s")
-                    .foregroundColor(.red)
-                    .font(.subheadline)
+                HStack(spacing: 4) {
+                    Image(systemName: "timer")
+                        .font(.caption)
+                    Text("Expires in: \(hours)h \(minutes)m \(seconds)s")
+                        .font(.caption)
+                }
+                .foregroundColor(.orange)
+                .padding(.top, 2)
             } else {
-                Text("Job expired")
-                    .foregroundColor(.gray)
-                    .font(.subheadline)
+                HStack(spacing: 4) {
+                    Image(systemName: "xmark.circle")
+                        .font(.caption)
+                    Text("Job expired")
+                        .font(.caption)
+                }
+                .foregroundColor(.gray)
+                .padding(.top, 2)
             }
 
+            // Worker: Apply button
             if isWorkerView, let candidate = currentCandidate {
                 if !(job.candidates?.contains(where: { $0.id == candidate.id }) ?? false) && remainingTime > 0 {
-
-                    Button("Apply") {
+                    Button {
                         jobStore.applyToJob(job: job, candidate: candidate) { error in
                             if let error = error {
                                 print("Error applying: \(error.localizedDescription)")
-                            } else {
-                                print("Applied successfully")
                             }
                         }
+                    } label: {
+                        Text("Apply")
+                            .font(.subheadline.bold())
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 10)
+                            .background(accentBlue)
+                            .foregroundColor(.white)
+                            .cornerRadius(10)
                     }
-                    .buttonStyle(.borderedProminent)
-
+                    .padding(.top, 4)
                 } else if remainingTime > 0 {
-
                     Text("Already applied")
+                        .font(.subheadline)
                         .foregroundColor(.gray)
                         .italic()
+                        .padding(.top, 4)
                 }
             }
 
+            // Business: Candidates
             if !isWorkerView {
-
                 if let candidates = job.candidates, !candidates.isEmpty {
+                    Divider()
+                        .padding(.vertical, 4)
 
-                    Text("Candidates Applied:")
-                        .fontWeight(.semibold)
+                    Text("Candidates (\(candidates.count))")
+                        .font(.subheadline.bold())
+                        .foregroundColor(Color(red: 0.12, green: 0.15, blue: 0.3))
 
                     ForEach(candidates, id: \.id) { candidate in
-
                         CandidateRowView(
                             candidate: candidate,
                             job: job,
@@ -173,38 +238,35 @@ struct JobRowView: View {
                                 jobStore.acceptCandidate(job: job, candidate: candidate) { error in
                                     if let error = error {
                                         print("Error accepting candidate: \(error.localizedDescription)")
-                                    } else {
-                                        print("Candidate accepted successfully")
                                     }
                                 }
                             }
                         )
                     }
-
                 } else {
                     Text("No candidates applied yet.")
+                        .font(.caption)
                         .foregroundColor(.gray)
+                        .padding(.top, 4)
                 }
 
+                // Completion code
                 if job.status == "accepted", let code = job.completionCode {
-
-                    Text("Completion Code for Worker: \(code)")
-                        .font(.headline)
-                        .padding(.top, 8)
-                        .foregroundColor(.green)
+                    HStack(spacing: 6) {
+                        Image(systemName: "lock.shield.fill")
+                            .foregroundColor(.green)
+                        Text("Completion Code: \(code)")
+                            .font(.subheadline.bold())
+                            .foregroundColor(.green)
+                    }
+                    .padding(.top, 8)
                 }
             }
         }
-        .frame(maxWidth: .infinity, minHeight: 140, alignment: .leading)
-        .padding()
-        .background(
-            RoundedRectangle(cornerRadius: 20)
-                .fill(Color.white)
-                .shadow(color: .black.opacity(0.08), radius: 6, x: 0, y: 3)
-        )
-        .padding(.vertical, 6)
-        .padding(.horizontal, 10)
-
+        .padding(16)
+        .background(Color.white)
+        .cornerRadius(14)
+        .shadow(color: .black.opacity(0.04), radius: 4, x: 0, y: 2)
         .onAppear {
             updateRemainingTime()
             timer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { _ in
@@ -214,6 +276,20 @@ struct JobRowView: View {
         .onDisappear {
             timer?.invalidate()
             timer = nil
+        }
+    }
+
+    // MARK: - Helpers
+
+    private func jobDetailRow(icon: String, text: String) -> some View {
+        HStack(spacing: 8) {
+            Image(systemName: icon)
+                .font(.caption)
+                .foregroundColor(accentBlue)
+                .frame(width: 16)
+            Text(text)
+                .font(.subheadline)
+                .foregroundColor(.secondary)
         }
     }
 
@@ -232,12 +308,16 @@ struct JobRowView: View {
     }
 }
 
+// MARK: - Candidate Row
+
 struct CandidateRowView: View {
     let candidate: Candidate
     let job: Job
     let isExpanded: Bool
     let onToggleExpand: () -> Void
     let onAccept: () -> Void
+
+    private let accentBlue = Color(red: 0.2, green: 0.4, blue: 0.8)
 
     var isCandidateAccepted: Bool {
         if job.status == "accepted", let acceptedId = job.acceptedCandidate?.id {
@@ -247,64 +327,89 @@ struct CandidateRowView: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            // Only toggle expand
+        VStack(alignment: .leading, spacing: 6) {
             Button(action: onToggleExpand) {
                 HStack {
-                    Text("\(candidate.name) \(candidate.surname) — \(candidate.experience)")
+                    Image(systemName: "person.fill")
+                        .font(.caption)
+                        .foregroundColor(accentBlue)
+                    Text("\(candidate.name) \(candidate.surname)")
                         .font(.subheadline)
-                        .foregroundColor(.blue)
+                        .foregroundColor(accentBlue)
+                    Text("• \(candidate.experience)")
+                        .font(.caption)
+                        .foregroundColor(.gray)
                     Spacer()
                     Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
+                        .font(.caption)
                         .foregroundColor(.gray)
                 }
             }
-            .buttonStyle(.plain) // Important! prevents it from inheriting parent tap behaviors
-            .contentShape(Rectangle()) // Only the HStack is tappable
+            .buttonStyle(.plain)
+            .contentShape(Rectangle())
 
             if isExpanded {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Name: \(candidate.name) \(candidate.surname)")
-                    Text("Age: \(candidate.age)")
-                    Text("Phone: \(candidate.number)")
-                    Text("Experience: \(candidate.experience)")
-                    
-                    // Accept button
+                VStack(alignment: .leading, spacing: 6) {
+                    detailRow("Name", value: "\(candidate.name) \(candidate.surname)")
+                    detailRow("Age", value: "\(candidate.age)")
+                    detailRow("Phone", value: candidate.number)
+                    detailRow("Experience", value: candidate.experience)
+
                     if !isCandidateAccepted {
-                        Button("Accept", action: onAccept)
-                            .buttonStyle(.borderedProminent)
-                            .padding(.top, 4)
+                        Button {
+                            onAccept()
+                        } label: {
+                            Text("Accept Candidate")
+                                .font(.subheadline.bold())
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 10)
+                                .background(Color.green)
+                                .foregroundColor(.white)
+                                .cornerRadius(8)
+                        }
+                        .padding(.top, 4)
                     } else {
-                        Text("Candidate accepted")
-                            .foregroundColor(.green)
-                            .italic()
-                            .padding(.top, 4)
+                        HStack(spacing: 4) {
+                            Image(systemName: "checkmark.circle.fill")
+                                .foregroundColor(.green)
+                            Text("Candidate accepted")
+                                .foregroundColor(.green)
+                                .italic()
+                        }
+                        .font(.subheadline)
+                        .padding(.top, 4)
                     }
                 }
-                .padding(.leading, 8) // indentation to show expansion
+                .padding(.leading, 24)
+                .padding(.top, 4)
             }
         }
-        .padding(.vertical, 6)
+        .padding(.vertical, 4)
+    }
+
+    private func detailRow(_ label: String, value: String) -> some View {
+        HStack(spacing: 4) {
+            Text("\(label):")
+                .font(.caption)
+                .foregroundColor(.gray)
+            Text(value)
+                .font(.caption)
+                .foregroundColor(Color(red: 0.12, green: 0.15, blue: 0.3))
+        }
     }
 }
 
-
-
-
-
-    
-    #Preview {
-        NavigationView {
-            AdvertisedJobsView(isWorkerView: true,
-                               currentCandidate: Candidate(id: "user123",
-                                                           name: "John",
-                                                           surname: "Doe",
-                                                           experience: "2 years",
-                                                           age: 30,
-                                                           number: "123-456-7890",
-                                                           skills: ["waiter"],      // wrap in an array
-                                                               hasDrivingLicense: false ))
-            .environmentObject(JobStore())
-        }
+#Preview {
+    NavigationView {
+        AdvertisedJobsView(isWorkerView: true,
+                           currentCandidate: Candidate(id: "user123",
+                                                       name: "John",
+                                                       surname: "Doe",
+                                                       experience: "2 years",
+                                                       age: 30,
+                                                       number: "123-456-7890",
+                                                       skills: ["waiter"],
+                                                       hasDrivingLicense: false))
+        .environmentObject(JobStore())
     }
-
+}

@@ -27,12 +27,18 @@ struct AdvertisedJobsView: View {
                             emptyState(icon: "megaphone", message: "No jobs currently advertised.")
                         } else {
                             ForEach(jobStore.businessadvertisedJobs) { job in
-                                JobRowView(
-                                    job: job,
-                                    isWorkerView: true,
-                                    currentCandidate: currentCandidate
-                                )
-                                .environmentObject(jobStore)
+                                NavigationLink {
+                                    WorkerJobDetailView(job: job, candidate: currentCandidate)
+                                        .environmentObject(jobStore)
+                                } label: {
+                                    JobRowView(
+                                        job: job,
+                                        isWorkerView: true,
+                                        currentCandidate: currentCandidate
+                                    )
+                                    .environmentObject(jobStore)
+                                }
+                                .buttonStyle(.plain)
                             }
                         }
                     } else {
@@ -189,31 +195,33 @@ struct JobRowView: View {
                 .padding(.top, 2)
             }
 
-            // Worker: Apply button
+            // Worker: applied status + tap hint (apply happens on detail screen)
             if isWorkerView, let candidate = currentCandidate {
-                if !(job.candidates?.contains(where: { $0.id == candidate.id }) ?? false) && remainingTime > 0 {
-                    Button {
-                        jobStore.applyToJob(job: job, candidate: candidate) { error in
-                            if let error = error {
-                                print("Error applying: \(error.localizedDescription)")
-                            }
-                        }
-                    } label: {
-                        Text("Apply")
-                            .font(.subheadline.bold())
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 10)
-                            .background(accentBlue)
-                            .foregroundColor(.white)
-                            .cornerRadius(10)
+                if job.candidates?.contains(where: { $0.id == candidate.id }) ?? false {
+                    HStack(spacing: 4) {
+                        Image(systemName: "checkmark.circle.fill")
+                            .font(.caption)
+                            .foregroundColor(.green)
+                        Text("Applied")
+                            .font(.caption)
+                            .foregroundColor(.green)
+                        Spacer()
+                        Image(systemName: "chevron.right")
+                            .font(.caption)
+                            .foregroundColor(.gray)
                     }
                     .padding(.top, 4)
-                } else if remainingTime > 0 {
-                    Text("Already applied")
-                        .font(.subheadline)
-                        .foregroundColor(.gray)
-                        .italic()
-                        .padding(.top, 4)
+                } else {
+                    HStack {
+                        Text("Tap to view & apply")
+                            .font(.caption)
+                            .foregroundColor(accentBlue)
+                        Spacer()
+                        Image(systemName: "chevron.right")
+                            .font(.caption)
+                            .foregroundColor(.gray)
+                    }
+                    .padding(.top, 4)
                 }
             }
 

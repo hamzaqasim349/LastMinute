@@ -159,7 +159,8 @@ struct MainView: View {
                                 VStack(spacing: 12) {
                                     ForEach(Array(jobStore.eligibleJobs.prefix(5)), id: \.id) { job in
                                         NavigationLink {
-                                            AdvertisedJobsView(isWorkerView: true, currentCandidate: candidate)
+                                            WorkerJobDetailView(job: job, candidate: candidate)
+                                                .environmentObject(jobStore)
                                         } label: {
                                             JobCardView(job: job)
                                         }

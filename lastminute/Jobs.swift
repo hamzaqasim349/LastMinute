@@ -59,6 +59,7 @@ struct Job: Identifiable, Equatable {
     var requiresDrivingLicense: Bool = false // NEW
     var acceptedWorkerId: String? = nil
     var expiryDate: Date? = nil
+    var createdAt: Date? = nil
     
     var timeUntilExpiry: TimeInterval? {
             guard let expiryDate = expiryDate else { return nil }
@@ -139,6 +140,10 @@ struct Job: Identifiable, Equatable {
         if let expiryDate = expiryDate {
                 dict["expiryDate"] = Timestamp(date: expiryDate)
             }
+
+        if let createdAt = createdAt {
+                dict["createdAt"] = Timestamp(date: createdAt)
+            }
         
         return dict
     }
@@ -171,6 +176,10 @@ struct Job: Identifiable, Equatable {
         
         if let expiryTimestamp = data["expiryDate"] as? Timestamp {
                 self.expiryDate = expiryTimestamp.dateValue()
+            }
+
+        if let createdTimestamp = data["createdAt"] as? Timestamp {
+                self.createdAt = createdTimestamp.dateValue()
             }
         
         if let candidatesData = data["candidates"] as? [[String: Any]] {
@@ -266,7 +275,7 @@ class JobStore: ObservableObject {
         
         stopListeners()
         
-        listenForActiveJobs(userId: userId)
+        listenForActiveJobs(userId: userId, userRole: userRole)
         listenForCompletedJobs(userId: userId, userRole: userRole)
         listenForAdvertisedJobs(userId: userId, userRole: userRole)
     }
@@ -317,6 +326,8 @@ class JobStore: ObservableObject {
                 }
                 return job
             }
+            // Sort latest posted first
+            .sorted { self.jobSortKey($0) > self.jobSortKey($1) }
             
             DispatchQueue.main.async {
                 self.businessadvertisedJobs = jobs
@@ -330,37 +341,37 @@ class JobStore: ObservableObject {
     private var businessJobsListener: ListenerRegistration?
     private var workerJobsListener: ListenerRegistration?
     
-    func listenForActiveJobs(userId: String) {
+    func listenForActiveJobs(userId: String, userRole: String) {
         print("👤 Listening for active jobs for user: \(userId)")
         
         businessJobsListener?.remove()
         workerJobsListener?.remove()
         
-        businessJobsListener = db.collection("jobs")
-            .whereField("postedBy", isEqualTo: userId)
-            .whereField("status", in: ["open", "accepted"])
-            .addSnapshotListener { snapshot, error in
-                guard let documents = snapshot?.documents else { return }
-                let businessJobs = documents.compactMap { Job(id: $0.documentID, data: $0.data()) }
-                
-                DispatchQueue.main.async {
-                    let now = Date()
+        // Only business users track their own posted jobs here.
+        // For workers, listenForAdvertisedJobs is the sole (sorted) writer of businessadvertisedJobs.
+        if userRole == "business" {
+            businessJobsListener = db.collection("jobs")
+                .whereField("postedBy", isEqualTo: userId)
+                .whereField("status", in: ["open", "accepted"])
+                .addSnapshotListener { snapshot, error in
+                    guard let documents = snapshot?.documents else { return }
+                    let businessJobs = documents.compactMap { Job(id: $0.documentID, data: $0.data()) }
                     
-                    // 🔥 Filter out expired jobs
-                    let validBusinessJobs = businessJobs.filter { job in
-                        job.date > now
+                    DispatchQueue.main.async {
+                        let now = Date()
+                        
+                        // Sorted latest posted first
+                        self.businessadvertisedJobs = businessJobs
+                            .filter { $0.status == "open" && ($0.expiryDate ?? Date.distantFuture) > now }
+                            .sorted { self.jobSortKey($0) > self.jobSortKey($1) }
+                        self.businessAcceptedJobs   = businessJobs.filter { $0.status == "accepted" && ($0.expiryDate ?? Date.distantFuture) > now }
+                        self.activeJobs = self.businessAcceptedJobs + self.workerActiveJobs
+                        
+                        print("✅ Fetched \(self.businessadvertisedJobs.count) advertised jobs")
+                        print("✅ Fetched \(self.businessAcceptedJobs.count) accepted jobs")
                     }
-                    // Split by status
-                    self.businessadvertisedJobs = businessJobs.filter { $0.status == "open" && ($0.expiryDate ?? Date.distantFuture) > now }
-                    self.businessAcceptedJobs   = businessJobs.filter { $0.status == "accepted" && ($0.expiryDate ?? Date.distantFuture) > now }
-                    self.activeJobs = self.businessAcceptedJobs + self.workerActiveJobs.filter { ($0.expiryDate ?? Date.distantFuture) > now }
-                    // Active jobs can still merge worker jobs if needed
-                    self.activeJobs = self.businessAcceptedJobs + self.workerActiveJobs
-                    
-                    print("✅ Fetched \(self.businessadvertisedJobs.count) advertised jobs")
-                    print("✅ Fetched \(self.businessAcceptedJobs.count) accepted jobs")
                 }
-            }
+        }
         
         
         workerJobsListener = db.collection("jobs")
@@ -435,8 +446,10 @@ class JobStore: ObservableObject {
         jobWithID.postedBy = currentUserID
         jobWithID.status = "open"
         
-        // Set expiry date
-        jobWithID.expiryDate = Calendar.current.date(byAdding: .hour, value: 24, to: Date())
+        // Set creation and expiry dates
+        let now = Date()
+        jobWithID.createdAt = now
+        jobWithID.expiryDate = Calendar.current.date(byAdding: .hour, value: 24, to: now)
         
         // Add device's current location to geoLocation
         if let currentLocation = locationManager.location?.coordinate {
@@ -695,6 +708,16 @@ class JobStore: ObservableObject {
                 .intersection(worker.skills)
                 .isEmpty
         }
+        // Sort latest posted first
+        .sorted { jobSortKey($0) > jobSortKey($1) }
+    }
+
+    // Returns a date to sort jobs by "latest posted first".
+    // Prefers createdAt; falls back to expiryDate (which is createdAt + 24h) for older jobs.
+    private func jobSortKey(_ job: Job) -> Date {
+        if let created = job.createdAt { return created }
+        if let expiry = job.expiryDate { return expiry }
+        return Date.distantPast
     }
     
     func fetchCurrentCandidate(userId: String) {

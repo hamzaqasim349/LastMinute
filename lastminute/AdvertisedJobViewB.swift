@@ -69,6 +69,9 @@ struct AdvertisedJobsView: View {
                 .padding(.top, 12)
                 .padding(.bottom, 20)
             }
+            .refreshable {
+                await jobStore.refresh()
+            }
         }
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {

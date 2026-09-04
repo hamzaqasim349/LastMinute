@@ -280,6 +280,26 @@ class JobStore: ObservableObject {
         listenForAdvertisedJobs(userId: userId, userRole: userRole)
     }
     
+    // Manually refresh all listeners (used for pull-to-refresh)
+    func refresh() async {
+        guard let uid = currentUserID else { return }
+        let role = await fetchUserRoleString(uid: uid)
+        await MainActor.run {
+            self.startListeners(for: uid, userRole: role)
+        }
+        // Give the snapshot listeners a moment to deliver fresh data
+        try? await Task.sleep(nanoseconds: 700_000_000)
+    }
+
+    private func fetchUserRoleString(uid: String) async -> String {
+        do {
+            let snapshot = try await db.collection("users").document(uid).getDocument()
+            return (snapshot.data()?["role"] as? String) ?? "worker"
+        } catch {
+            return "worker"
+        }
+    }
+
     // Stop all listeners to prevent duplicates and memory leaks
     func stopListeners() {
         activeJobsListener?.remove()

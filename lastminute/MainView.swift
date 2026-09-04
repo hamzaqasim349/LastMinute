@@ -126,6 +126,7 @@ struct MainView: View {
                     VStack(spacing: 20) {
                         // Earnings card
                         ProfileBubbleView(totalEarnings: 0.0)
+                            .id("earnings")
 
                         // Nearby jobs section
                         VStack(alignment: .leading, spacing: 12) {
@@ -171,6 +172,11 @@ struct MainView: View {
                     }
                     .padding(.top, 4)
                     .padding(.bottom, 20)
+                }
+                .refreshable {
+                    await jobStore.refresh()
+                    let currentLoc = locationManager.userLocation ?? CLLocation(latitude: 51.5074, longitude: -0.1278)
+                    jobStore.updateEligibleJobs(worker: candidate, userLocation: currentLoc)
                 }
             } else {
                 VStack {

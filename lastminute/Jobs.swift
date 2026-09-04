@@ -364,7 +364,9 @@ class JobStore: ObservableObject {
                         self.businessadvertisedJobs = businessJobs
                             .filter { $0.status == "open" && ($0.expiryDate ?? Date.distantFuture) > now }
                             .sorted { self.jobSortKey($0) > self.jobSortKey($1) }
-                        self.businessAcceptedJobs   = businessJobs.filter { $0.status == "accepted" && ($0.expiryDate ?? Date.distantFuture) > now }
+                        self.businessAcceptedJobs   = businessJobs
+                            .filter { $0.status == "accepted" && ($0.expiryDate ?? Date.distantFuture) > now }
+                            .sorted { self.jobSortKey($0) > self.jobSortKey($1) }
                         self.activeJobs = self.businessAcceptedJobs + self.workerActiveJobs
                         
                         print("✅ Fetched \(self.businessadvertisedJobs.count) advertised jobs")
@@ -422,6 +424,8 @@ class JobStore: ObservableObject {
                 }
                 return job
             }
+            // Sort latest first
+            .sorted { self.jobSortKey($0) > self.jobSortKey($1) }
             
             DispatchQueue.main.async {
                 self.completedJobs = jobs

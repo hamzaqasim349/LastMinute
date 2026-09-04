@@ -9,13 +9,21 @@ import CoreLocation
 
 struct MainView: View {
     let currentUserID: String
-    
+
     @EnvironmentObject var jobStore: JobStore
     @EnvironmentObject var authViewModel: AuthViewModel
     @StateObject private var locationManager = LocationManager()
-    
-    private let strongOrange = Color(red: 1.0, green: 0.5, blue: 0.0)
-    
+
+    @State private var selectedTab: WorkerTab = .nearby
+
+    private let accentBlue = Color(red: 0.2, green: 0.4, blue: 0.8)
+
+    enum WorkerTab {
+        case nearby
+        case current
+        case history
+    }
+
     var currentCandidate: Candidate? {
         guard !currentUserID.isEmpty else { return nil }
         return Candidate(
@@ -29,308 +37,300 @@ struct MainView: View {
             hasDrivingLicense: false
         )
     }
-    
-    struct ProfileBubbleView: View {
-        let totalEarnings: Double
-        
-        var body: some View {
-            ZStack {
-                RoundedRectangle(cornerRadius: 25)
-                    .fill(Color.white.opacity(0.8))
-                    .shadow(radius: 5)
-                    .frame(height: 100)
-                    .padding(.horizontal, 20)
-                
-                HStack(spacing: 20) {
-                    Circle()
-                        .fill(Color.gray.opacity(0.3))
-                        .frame(width: 60, height: 60)
-                    
-                    VStack(alignment: .leading, spacing: 5) {
-                        Text("Total Earnings")
-                            .font(.caption)
-                            .foregroundColor(.gray)
-                        
-                        Text("£\(totalEarnings, specifier: "%.2f")")
-                            .font(.title2)
-                            .bold()
-                            .foregroundColor(.black)
-                    }
-                    
-                    Spacer()
-                }
-                .padding(.horizontal, 30)
-            }
-            .padding(.top, 10)
-        }
-    }
-    
-    
+
     var body: some View {
-        GeometryReader { geometry in
-            
-            ZStack(alignment: .bottomTrailing) {
-                
-                // MAIN CONTENT
-                Group {
-                    if let candidate = currentCandidate {
-                        VStack(spacing: 20) {
-                            
-                            ProfileBubbleView(totalEarnings: 0.0)
-                            
-                            NavigationLink {
-                                AdvertisedJobsView(isWorkerView: true, currentCandidate: candidate)
-                            } label: {
-                                VStack(alignment: .leading, spacing: 15) {
-                                    
-                                    HStack {
-                                        Text("Nearby Jobs")
-                                            .font(.title2)
-                                            .bold()
-                                        Spacer()
-                                        Image(systemName: "chevron.right")
-                                    }
-                                    .padding(.horizontal, 20)
-                                    
-                                    ScrollView(.horizontal, showsIndicators: false) {
-                                        HStack(spacing: 15) {
-                                            ForEach(Array(jobStore.eligibleJobs.prefix(5)), id: \.id) { job in
-                                                JobCardView(job: job)
-                                            }
-                                        }
-                                        .padding(.horizontal, 20)
-                                    }
-                                }
-                                .frame(maxWidth: .infinity)
-                                .frame(height: geometry.size.height * 0.25)
-                                .background(Color.white.opacity(0.3))
-                                .cornerRadius(20)
-                                .padding(.horizontal, 15)
-                            }
-                            .buttonStyle(.plain)
-                            
-                            Spacer()
-                            
-                            // Bottom Navigation
-                            HStack {
-                                Spacer()
-                                
-                                NavigationLink {
-                                    AdvertisedJobsView(isWorkerView: true, currentCandidate: candidate)
-                                } label: {
-                                    VStack {
-                                        Image(systemName: "location.fill")
-                                        Text("Nearby")
-                                            .font(.caption)
-                                    }
-                                }
-                                
-                                Spacer()
-                                
-                                NavigationLink {
-                                    CurrentJobsView()
-                                } label: {
-                                    VStack {
-                                        Image(systemName: "briefcase.fill")
-                                        Text("Current")
-                                            .font(.caption)
-                                    }
-                                }
-                                
-                                Spacer()
-                                
-                                NavigationLink {
-                                    JobHistoryViewWorkers()
-                                } label: {
-                                    VStack {
-                                        Image(systemName: "clock.fill")
-                                        Text("History")
-                                            .font(.caption)
-                                    }
-                                }
-                                
-                                Spacer()
-                            }
-                            .padding(.vertical, 10)
-                            .background(Color(red: 0.97, green: 0.96, blue: 0.93))
-                        }
-                        .background(Color(red: 0.97, green: 0.96, blue: 0.93))
-                    } else {
-                        Text("❌ Candidate not found")
-                            .foregroundColor(.red)
-                    }
+        VStack(spacing: 0) {
+            // Notification widget
+            WorkerNotificationWidget()
+                .padding(.horizontal, 16)
+                .padding(.top, 12)
+                .padding(.bottom, 16)
+
+            // Content
+            Group {
+                switch selectedTab {
+                case .nearby:
+                    nearbyView
+                case .current:
+                    CurrentJobsView()
+                case .history:
+                    JobHistoryViewWorkers()
                 }
-                
-                // 🔔 ALERT WIDGET
-                PushNotificationWidget()
-                    .frame(
-                        width: geometry.size.width * 0.5,
-                        height: geometry.size.height * 0.25
-                    )
-                    .padding(.bottom, 70)
-                    .padding(.trailing, 16)
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+
+            // Bottom tab bar
+            HStack {
+                Spacer()
+                tabButton(icon: "location.fill", title: "Nearby", tab: .nearby)
+                Spacer()
+                tabButton(icon: "briefcase.fill", title: "Current", tab: .current)
+                Spacer()
+                tabButton(icon: "clock.fill", title: "History", tab: .history)
+                Spacer()
+            }
+            .padding(.vertical, 10)
+            .background(Color.white)
+            .shadow(color: .black.opacity(0.05), radius: 4, x: 0, y: -2)
         }
+        .background(Color(red: 0.92, green: 0.95, blue: 1.0))
+        .ignoresSafeArea(edges: .bottom)
         .navigationTitle("Dashboard")
         .navigationBarBackButtonHidden(true)
         .toolbar {
-            ToolbarItem(placement: .navigationBarTrailing) {
-                HStack {
-                    Button {
-                        authViewModel.currentScreen = .profileView
-                    } label: {
-                        Image(systemName: "person.crop.circle.fill")
-                    }
-                    
-                    Button {
-                        authViewModel.signOut()
-                    } label: {
-                        Image(systemName: "arrowshape.turn.up.left.fill")
-                    }
+            ToolbarItem(placement: .navigationBarLeading) {
+                Button {
+                    authViewModel.currentScreen = .profileView
+                } label: {
+                    Image(systemName: "person.fill")
+                        .font(.system(size: 24))
+                        .foregroundColor(accentBlue)
                 }
+            }
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button {
+                    authViewModel.signOut()
+                } label: {
+                    Image(systemName: "rectangle.portrait.and.arrow.right")
+                        .font(.system(size: 18))
+                        .foregroundColor(.red.opacity(0.8))
+                }
+                .accessibilityLabel("Sign Out")
             }
         }
         .onChange(of: locationManager.userLocation) { location in
-            guard
-                let location,
-                let candidate = currentCandidate
-            else { return }
-            
-            jobStore.updateEligibleJobs(
-                worker: candidate,
-                userLocation: location
-            )
+            guard let location, let candidate = currentCandidate else { return }
+            jobStore.updateEligibleJobs(worker: candidate, userLocation: location)
         }
         .onChange(of: jobStore.businessadvertisedJobs) { _ in
             guard let candidate = currentCandidate else { return }
-            
-            let currentLoc = locationManager.userLocation ??
-            CLLocation(latitude: 51.5074, longitude: -0.1278)
-            
-            jobStore.updateEligibleJobs(
-                worker: candidate,
-                userLocation: currentLoc
-            )
+            let currentLoc = locationManager.userLocation ?? CLLocation(latitude: 51.5074, longitude: -0.1278)
+            jobStore.updateEligibleJobs(worker: candidate, userLocation: currentLoc)
         }
         .onAppear {
             if let userId = authViewModel.user?.uid {
-                jobStore.startListeners(
-                    for: userId,
-                    userRole: authViewModel.userRole.rawValue
-                )
+                jobStore.startListeners(for: userId, userRole: authViewModel.userRole.rawValue)
             }
-            
-            if let location = locationManager.userLocation,
-               let candidate = currentCandidate {
-                jobStore.updateEligibleJobs(
-                    worker: candidate,
-                    userLocation: location
-                )
+            if let location = locationManager.userLocation, let candidate = currentCandidate {
+                jobStore.updateEligibleJobs(worker: candidate, userLocation: location)
             }
         }
     }
-    
-    
-    // ⬇️ Job Card Component for the Widget
+
+    // MARK: - Nearby View
+
+    private var nearbyView: some View {
+        Group {
+            if let candidate = currentCandidate {
+                ScrollView {
+                    VStack(spacing: 20) {
+                        // Earnings card
+                        ProfileBubbleView(totalEarnings: 0.0)
+
+                        // Nearby jobs section
+                        VStack(alignment: .leading, spacing: 12) {
+                            HStack {
+                                Text("Nearby Jobs")
+                                    .font(.headline)
+                                    .foregroundColor(Color(red: 0.12, green: 0.15, blue: 0.3))
+                                Spacer()
+                                NavigationLink {
+                                    AdvertisedJobsView(isWorkerView: true, currentCandidate: candidate)
+                                } label: {
+                                    Text("View All")
+                                        .font(.subheadline.bold())
+                                        .foregroundColor(accentBlue)
+                                }
+                            }
+
+                            if jobStore.eligibleJobs.isEmpty {
+                                VStack(spacing: 10) {
+                                    Image(systemName: "location.slash")
+                                        .font(.system(size: 36))
+                                        .foregroundColor(.gray.opacity(0.4))
+                                    Text("No nearby jobs found")
+                                        .font(.subheadline)
+                                        .foregroundColor(.gray)
+                                }
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 40)
+                            } else {
+                                VStack(spacing: 12) {
+                                    ForEach(Array(jobStore.eligibleJobs.prefix(5)), id: \.id) { job in
+                                        NavigationLink {
+                                            AdvertisedJobsView(isWorkerView: true, currentCandidate: candidate)
+                                        } label: {
+                                            JobCardView(job: job)
+                                        }
+                                        .buttonStyle(.plain)
+                                    }
+                                }
+                            }
+                        }
+                        .padding(.horizontal, 16)
+                    }
+                    .padding(.top, 4)
+                    .padding(.bottom, 20)
+                }
+            } else {
+                VStack {
+                    Image(systemName: "person.crop.circle.badge.exclamationmark")
+                        .font(.system(size: 44))
+                        .foregroundColor(.gray.opacity(0.5))
+                    Text("Candidate not found")
+                        .foregroundColor(.gray)
+                        .padding(.top, 8)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+        }
+    }
+
+    // MARK: - Tab Button
+
+    @ViewBuilder
+    private func tabButton(icon: String, title: String, tab: WorkerTab) -> some View {
+        Button {
+            selectedTab = tab
+        } label: {
+            VStack(spacing: 4) {
+                Image(systemName: icon)
+                    .font(.system(size: 20))
+                    .foregroundColor(selectedTab == tab ? accentBlue : .gray)
+                Text(title)
+                    .font(.caption2.bold())
+                    .foregroundColor(selectedTab == tab ? accentBlue : .gray)
+            }
+        }
+    }
+
+    // MARK: - Earnings Card
+
+    struct ProfileBubbleView: View {
+        let totalEarnings: Double
+        private let accentBlue = Color(red: 0.2, green: 0.4, blue: 0.8)
+
+        var body: some View {
+            HStack(spacing: 16) {
+                ZStack {
+                    Circle()
+                        .fill(accentBlue.opacity(0.12))
+                        .frame(width: 56, height: 56)
+                    Image(systemName: "sterlingsign.circle.fill")
+                        .font(.system(size: 28))
+                        .foregroundColor(accentBlue)
+                }
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Total Earnings")
+                        .font(.caption)
+                        .foregroundColor(.gray)
+                    Text("£\(totalEarnings, specifier: "%.2f")")
+                        .font(.title2.bold())
+                        .foregroundColor(Color(red: 0.12, green: 0.15, blue: 0.3))
+                }
+
+                Spacer()
+            }
+            .padding(16)
+            .background(Color.white)
+            .cornerRadius(14)
+            .shadow(color: .black.opacity(0.04), radius: 4, x: 0, y: 2)
+            .padding(.horizontal, 16)
+        }
+    }
+
+    // MARK: - Job Card
+
     struct JobCardView: View {
         let job: Job
-        
+        private let accentBlue = Color(red: 0.2, green: 0.4, blue: 0.8)
+
         var body: some View {
             VStack(alignment: .leading, spacing: 8) {
-                Text(job.title)
-                    .font(.headline)
-                    .foregroundColor(.black)
-                    .lineLimit(1)
-                
                 HStack {
-                    Image(systemName: "mappin.circle.fill")
-                        .foregroundColor(Color(red: 1.0, green: 0.5, blue: 0.0))
-                    Text(job.location)
-                        .font(.caption)
-                        .foregroundColor(.gray)
+                    Text(job.title)
+                        .font(.subheadline.bold())
+                        .foregroundColor(Color(red: 0.12, green: 0.15, blue: 0.3))
                         .lineLimit(1)
-                }
-                
-                HStack {
-                    Image(systemName: "clock.fill")
-                        .foregroundColor(Color(red: 1.0, green: 0.5, blue: 0.0))
-                    Text(job.time)
+                    Spacer()
+                    Image(systemName: "chevron.right")
                         .font(.caption)
                         .foregroundColor(.gray)
                 }
-                
-                Spacer()
-                
-                HStack {
-                    Text("Hello")
-                        .font(.subheadline)
-                        .bold()
-                        .foregroundColor(Color(red: 1.0, green: 0.5, blue: 0.0))
-                    
-                    Spacer()
-                    
-                    Image(systemName: "chevron.right")
-                        .foregroundColor(.gray)
+
+                HStack(spacing: 12) {
+                    Label(job.location, systemImage: "mappin.circle.fill")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .lineLimit(1)
+
+                    Label("\(job.pay) /hr", systemImage: "sterlingsign.circle.fill")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
                 }
+
+                Label(job.time, systemImage: "clock")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
             }
-            .padding()
-            .frame(width: 250, height: 140)
-            .background(Color.white.opacity(0.8))
-            .cornerRadius(15)
-            .shadow(radius: 3)
+            .padding(14)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Color.white)
+            .cornerRadius(12)
+            .shadow(color: .black.opacity(0.04), radius: 3, x: 0, y: 2)
         }
     }
-    struct PushNotificationWidget: View {
-        
+
+    // MARK: - Notification Widget
+
+    struct WorkerNotificationWidget: View {
         @EnvironmentObject var jobStore: JobStore
-        
+
         var body: some View {
-            VStack(alignment: .leading, spacing: 12) {
-                
+            VStack(alignment: .leading, spacing: 10) {
                 HStack {
                     Image(systemName: "bell.badge.fill")
                         .foregroundColor(.white)
-                    
                     Text("Alerts")
                         .font(.headline)
                         .foregroundColor(.white)
-                    
                     Spacer()
                 }
-                
+
                 Divider()
                     .background(Color.white.opacity(0.4))
-                
-                // Example dynamic alerts
-                if !jobStore.businessAcceptedJobs.isEmpty {
-                    Text("• Job accepted")
+
+                if !jobStore.workerActiveJobs.isEmpty {
+                    Label("You have \(jobStore.workerActiveJobs.count) active job(s)", systemImage: "briefcase.fill")
+                        .font(.subheadline)
+                        .foregroundColor(.white)
                 }
-                
+
                 if !jobStore.eligibleJobs.isEmpty {
-                    Text("• \(jobStore.eligibleJobs.count) nearby jobs")
+                    Label("\(jobStore.eligibleJobs.count) nearby jobs available", systemImage: "location.fill")
+                        .font(.subheadline)
+                        .foregroundColor(.white)
+                } else {
+                    Label("No nearby jobs right now", systemImage: "location.slash")
+                        .font(.subheadline)
+                        .foregroundColor(.white.opacity(0.85))
                 }
-                
-                if jobStore.businessadvertisedJobs.isEmpty {
-                    Text("• No active jobs")
-                }
-                
-                Spacer()
             }
             .padding()
             .background(
-                RoundedRectangle(cornerRadius: 22)
+                RoundedRectangle(cornerRadius: 16)
                     .fill(
                         LinearGradient(
                             colors: [
-                                Color.orange,
-                                Color(red: 1.0, green: 0.5, blue: 0.0)
+                                Color(red: 0.5, green: 0.7, blue: 1.0),
+                                Color(red: 0.2, green: 0.4, blue: 0.8)
                             ],
                             startPoint: .topLeading,
                             endPoint: .bottomTrailing
                         )
                     )
             )
-            .shadow(radius: 8)
         }
     }
 }

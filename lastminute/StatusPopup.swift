@@ -109,16 +109,22 @@ struct StatusPopupView: View {
 // MARK: - View Modifier for easy use
 
 extension View {
+    /// Presents a native iOS system alert (matching the standard dialog look)
+    /// for the given status data. Clears the binding when dismissed.
     func statusPopup(_ data: Binding<StatusPopupData?>) -> some View {
-        self.overlay {
-            if let popup = data.wrappedValue {
-                StatusPopupView(data: popup) {
-                    withAnimation {
-                        data.wrappedValue = nil
-                    }
-                }
-                .transition(.opacity)
+        self.alert(
+            data.wrappedValue?.title ?? "",
+            isPresented: Binding(
+                get: { data.wrappedValue != nil },
+                set: { if !$0 { data.wrappedValue = nil } }
+            ),
+            presenting: data.wrappedValue
+        ) { _ in
+            Button("OK", role: .cancel) {
+                data.wrappedValue = nil
             }
+        } message: { popup in
+            Text(popup.message)
         }
     }
 }

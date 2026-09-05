@@ -17,9 +17,7 @@ struct WorkerJobDetailView: View {
     @State private var remainingTime: TimeInterval = 0
     @State private var timer: Timer? = nil
     @State private var isApplying = false
-    @State private var showAlert = false
-    @State private var alertTitle = ""
-    @State private var alertMessage = ""
+    @State private var statusPopup: StatusPopupData? = nil
     @State private var didApplyLocally = false
 
     private var hasApplied: Bool {
@@ -135,11 +133,7 @@ struct WorkerJobDetailView: View {
             timer?.invalidate()
             timer = nil
         }
-        .alert(alertTitle, isPresented: $showAlert) {
-            Button("Ok", role: .cancel) { }
-        } message: {
-            Text(alertMessage)
-        }
+        .statusPopup($statusPopup)
     }
 
     // MARK: - Apply Section
@@ -193,9 +187,9 @@ struct WorkerJobDetailView: View {
 
     private func applyToJob() {
         guard let candidate = candidate else {
-            alertTitle = "Error"
-            alertMessage = "Unable to identify your profile. Please try again."
-            showAlert = true
+            withAnimation {
+                statusPopup = StatusPopupData(kind: .error, title: "Error", message: "Unable to identify your profile. Please try again.")
+            }
             return
         }
 
@@ -203,15 +197,14 @@ struct WorkerJobDetailView: View {
         jobStore.applyToJob(job: job, candidate: candidate) { error in
             DispatchQueue.main.async {
                 isApplying = false
-                if let error = error {
-                    alertTitle = "Application Failed"
-                    alertMessage = error.localizedDescription
-                } else {
-                    didApplyLocally = true
-                    alertTitle = "Applied!"
-                    alertMessage = "Your application has been submitted successfully."
+                withAnimation {
+                    if let error = error {
+                        statusPopup = StatusPopupData(kind: .error, title: "Application Failed", message: error.localizedDescription)
+                    } else {
+                        didApplyLocally = true
+                        statusPopup = StatusPopupData(kind: .success, title: "Applied!", message: "Your application has been submitted successfully.")
+                    }
                 }
-                showAlert = true
             }
         }
     }

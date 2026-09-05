@@ -12,9 +12,7 @@ struct ForgotPasswordView: View {
     @State private var email = ""
     @State private var emailError: String?
     @State private var isLoading = false
-    @State private var showAlert = false
-    @State private var alertTitle = ""
-    @State private var alertMessage = ""
+    @State private var statusPopup: StatusPopupData? = nil
     @Environment(\.dismiss) private var dismiss
     @FocusState private var emailFieldFocused: Bool
 
@@ -118,11 +116,7 @@ struct ForgotPasswordView: View {
                     .foregroundColor(Color(red: 0.15, green: 0.3, blue: 0.65))
                 }
             }
-            .alert(alertTitle, isPresented: $showAlert) {
-                Button("Ok", role: .cancel) { }
-            } message: {
-                Text(alertMessage)
-            }
+            .statusPopup($statusPopup)
         }
     }
 
@@ -149,14 +143,13 @@ struct ForgotPasswordView: View {
         isLoading = true
         Auth.auth().sendPasswordReset(withEmail: trimmed) { error in
             isLoading = false
-            if let error {
-                alertTitle = "Error"
-                alertMessage = error.localizedDescription
-            } else {
-                alertTitle = "Email Sent"
-                alertMessage = "A password reset link has been sent to your email."
+            withAnimation {
+                if let error {
+                    statusPopup = StatusPopupData(kind: .error, title: "Error", message: error.localizedDescription)
+                } else {
+                    statusPopup = StatusPopupData(kind: .success, title: "Email Sent", message: "A password reset link has been sent to your email.")
+                }
             }
-            showAlert = true
         }
     }
 

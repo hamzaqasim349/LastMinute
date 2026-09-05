@@ -20,9 +20,7 @@ struct ChangePasswordView: View {
     @State private var confirmError: String?
 
     @State private var isLoading = false
-    @State private var showAlert = false
-    @State private var alertTitle = ""
-    @State private var alertMessage = ""
+    @State private var statusPopup: StatusPopupData? = nil
     @State private var didSucceed = false
 
     private let accentBlue = Color(red: 0.2, green: 0.4, blue: 0.8)
@@ -90,12 +88,12 @@ struct ChangePasswordView: View {
                         .foregroundColor(accentBlue)
                 }
             }
-            .alert(alertTitle, isPresented: $showAlert) {
-                Button("Ok", role: .cancel) {
-                    if didSucceed { dismiss() }
+            .statusPopup($statusPopup)
+            .onChange(of: statusPopup) { newValue in
+                // Popup was dismissed after a successful change → close the sheet
+                if newValue == nil && didSucceed {
+                    dismiss()
                 }
-            } message: {
-                Text(alertMessage)
             }
         }
     }
@@ -186,9 +184,9 @@ struct ChangePasswordView: View {
     }
 
     private func showResult(title: String, message: String, success: Bool) {
-        alertTitle = title
-        alertMessage = message
         didSucceed = success
-        showAlert = true
+        withAnimation {
+            statusPopup = StatusPopupData(kind: success ? .success : .error, title: title, message: message)
+        }
     }
 }

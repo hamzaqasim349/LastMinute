@@ -29,6 +29,22 @@ struct MainView: View {
         jobStore.currentCandidate
     }
 
+    // Nearby jobs the worker hasn't applied to yet
+    var availableEligibleJobs: [Job] {
+        guard let candidate = currentCandidate else { return jobStore.eligibleJobs }
+        return jobStore.eligibleJobs.filter { job in
+            !(job.candidates?.contains(where: { $0.id == candidate.id }) ?? false)
+        }
+    }
+
+    // Nearby jobs the worker has applied to
+    var appliedEligibleJobs: [Job] {
+        guard let candidate = currentCandidate else { return [] }
+        return jobStore.eligibleJobs.filter { job in
+            job.candidates?.contains(where: { $0.id == candidate.id }) ?? false
+        }
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             // Notification widget
@@ -126,7 +142,7 @@ struct MainView: View {
                         ProfileBubbleView(totalEarnings: 0.0)
                             .id("earnings")
 
-                        // Nearby jobs section
+                        // Nearby (available) jobs section
                         VStack(alignment: .leading, spacing: 12) {
                             HStack {
                                 Text("Nearby Jobs")
@@ -142,7 +158,7 @@ struct MainView: View {
                                 }
                             }
 
-                            if jobStore.eligibleJobs.isEmpty {
+                            if availableEligibleJobs.isEmpty {
                                 VStack(spacing: 10) {
                                     Image(systemName: "location.slash")
                                         .font(.system(size: 36))
@@ -155,7 +171,7 @@ struct MainView: View {
                                 .padding(.vertical, 40)
                             } else {
                                 VStack(spacing: 12) {
-                                    ForEach(Array(jobStore.eligibleJobs.prefix(5)), id: \.id) { job in
+                                    ForEach(Array(availableEligibleJobs.prefix(5)), id: \.id) { job in
                                         NavigationLink {
                                             WorkerJobDetailView(job: job, candidate: candidate)
                                                 .environmentObject(jobStore)
@@ -168,6 +184,28 @@ struct MainView: View {
                             }
                         }
                         .padding(.horizontal, 16)
+
+                        // Applied jobs section
+                        if !appliedEligibleJobs.isEmpty {
+                            VStack(alignment: .leading, spacing: 12) {
+                                Text("Applied Jobs")
+                                    .font(.headline)
+                                    .foregroundColor(Color(red: 0.12, green: 0.15, blue: 0.3))
+
+                                VStack(spacing: 12) {
+                                    ForEach(Array(appliedEligibleJobs.prefix(5)), id: \.id) { job in
+                                        NavigationLink {
+                                            WorkerJobDetailView(job: job, candidate: candidate)
+                                                .environmentObject(jobStore)
+                                        } label: {
+                                            JobCardView(job: job)
+                                        }
+                                        .buttonStyle(.plain)
+                                    }
+                                }
+                            }
+                            .padding(.horizontal, 16)
+                        }
                     }
                     .padding(.top, 4)
                     .padding(.bottom, 20)

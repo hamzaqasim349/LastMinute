@@ -26,19 +26,20 @@ struct AdvertisedJobsView: View {
                         if jobStore.businessadvertisedJobs.isEmpty {
                             emptyState(icon: "megaphone", message: "No jobs currently advertised.")
                         } else {
-                            ForEach(jobStore.businessadvertisedJobs) { job in
-                                NavigationLink {
-                                    WorkerJobDetailView(job: job, candidate: currentCandidate)
-                                        .environmentObject(jobStore)
-                                } label: {
-                                    JobRowView(
-                                        job: job,
-                                        isWorkerView: true,
-                                        currentCandidate: currentCandidate
-                                    )
-                                    .environmentObject(jobStore)
+                            // Available (not yet applied)
+                            if !availableJobs.isEmpty {
+                                sectionHeader("Available Jobs")
+                                ForEach(availableJobs) { job in
+                                    workerJobLink(job)
                                 }
-                                .buttonStyle(.plain)
+                            }
+
+                            // Applied jobs
+                            if !appliedJobs.isEmpty {
+                                sectionHeader("Applied Jobs")
+                                ForEach(appliedJobs) { job in
+                                    workerJobLink(job)
+                                }
                             }
                         }
                     } else {
@@ -87,6 +88,38 @@ struct AdvertisedJobsView: View {
                     .foregroundColor(Color(red: 0.12, green: 0.15, blue: 0.3))
             }
         }
+    }
+
+    // MARK: - Worker Job Partitioning
+
+    private var appliedJobs: [Job] {
+        guard let candidate = currentCandidate else { return [] }
+        return jobStore.businessadvertisedJobs.filter { job in
+            job.candidates?.contains(where: { $0.id == candidate.id }) ?? false
+        }
+    }
+
+    private var availableJobs: [Job] {
+        guard let candidate = currentCandidate else { return jobStore.businessadvertisedJobs }
+        return jobStore.businessadvertisedJobs.filter { job in
+            !(job.candidates?.contains(where: { $0.id == candidate.id }) ?? false)
+        }
+    }
+
+    @ViewBuilder
+    private func workerJobLink(_ job: Job) -> some View {
+        NavigationLink {
+            WorkerJobDetailView(job: job, candidate: currentCandidate)
+                .environmentObject(jobStore)
+        } label: {
+            JobRowView(
+                job: job,
+                isWorkerView: true,
+                currentCandidate: currentCandidate
+            )
+            .environmentObject(jobStore)
+        }
+        .buttonStyle(.plain)
     }
 
     // MARK: - Helpers

@@ -22,6 +22,7 @@ struct ProfileView: View {
     @State private var address = ""
     @State private var isEditing = false
     @State private var showSaveAlert = false
+    @State private var showChangePassword = false
 
     let allSkills = ["Cashier", "Delivery Driver", "Stock Replenisher", "Waiter", "Cook/Chef"]
     @State private var selectedSkills: Set<String> = []
@@ -40,6 +41,7 @@ struct ProfileView: View {
                         profilePictureSection
                         personalDetailsSection
                         characteristicsSection
+                        securitySection
 
                         if isEditing {
                             Button {
@@ -108,7 +110,43 @@ struct ProfileView: View {
             } message: {
                 Text("Your profile has been updated successfully.")
             }
+            .sheet(isPresented: $showChangePassword) {
+                ChangePasswordView()
+            }
         }
+    }
+
+    // MARK: - Security Section
+
+    private var securitySection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Security")
+                .font(.headline)
+                .foregroundColor(Color(red: 0.12, green: 0.15, blue: 0.3))
+
+            Button {
+                showChangePassword = true
+            } label: {
+                HStack(spacing: 12) {
+                    Image(systemName: "lock.fill")
+                        .font(.system(size: 16))
+                        .foregroundColor(accentBlue)
+                        .frame(width: 24)
+                    Text("Change Password")
+                        .foregroundColor(Color(red: 0.12, green: 0.15, blue: 0.3))
+                    Spacer()
+                    Image(systemName: "chevron.right")
+                        .font(.caption)
+                        .foregroundColor(.gray)
+                }
+                .padding()
+                .background(Color(red: 0.96, green: 0.97, blue: 0.98))
+                .cornerRadius(10)
+            }
+        }
+        .padding(20)
+        .background(Color.white)
+        .cornerRadius(14)
     }
 
     // MARK: - Profile Picture Section

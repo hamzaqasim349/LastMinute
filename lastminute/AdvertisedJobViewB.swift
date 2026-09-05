@@ -362,9 +362,9 @@ struct CandidateRowView: View {
             if isExpanded {
                 VStack(alignment: .leading, spacing: 6) {
                     detailRow("Name", value: "\(candidate.name) \(candidate.surname)")
-                    detailRow("Age", value: "\(candidate.age)")
-                    detailRow("Phone", value: candidate.number)
-                    detailRow("Experience", value: candidate.experience)
+                    detailRow("Age", value: candidate.age > 0 ? "\(candidate.age)" : "Not specified")
+                    detailRow("Phone", value: candidate.number.isEmpty ? "Not specified" : candidate.number)
+                    detailRow("Experience", value: candidate.experience.isEmpty ? "Not specified" : candidate.experience)
 
                     if !isCandidateAccepted {
                         Button {

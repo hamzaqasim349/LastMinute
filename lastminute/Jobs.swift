@@ -278,6 +278,11 @@ class JobStore: ObservableObject {
         listenForActiveJobs(userId: userId, userRole: userRole)
         listenForCompletedJobs(userId: userId, userRole: userRole)
         listenForAdvertisedJobs(userId: userId, userRole: userRole)
+
+        // Always load the real worker profile so applications use correct data
+        if userRole == "worker" {
+            fetchCurrentCandidate(userId: userId)
+        }
     }
     
     // Manually refresh all listeners (used for pull-to-refresh)
@@ -756,20 +761,28 @@ class JobStore: ObservableObject {
                 return
             }
             
+            // Read using the actual field names saved at signup / profile.
+            // Fall back to alternate keys for robustness across older/newer docs.
+            let firstName = data["firstName"] as? String ?? data["name"] as? String ?? ""
+            let lastName = data["lastName"] as? String ?? data["surname"] as? String ?? ""
+            let phone = data["mobileNumber"] as? String
+                ?? data["mobilePhoneNumber"] as? String
+                ?? data["number"] as? String ?? ""
+
             let candidate = Candidate(
                 id: userId,
-                name: data["name"] as? String ?? "",
-                surname: data["surname"] as? String ?? "",
-                experience: data["experience"] as? String ?? "",
+                name: firstName,
+                surname: lastName,
+                experience: data["experience"] as? String ?? "Not specified",
                 age: data["age"] as? Int ?? 0,
-                number: data["number"] as? String ?? "",
+                number: phone,
                 skills: data["skills"] as? [String] ?? [],
                 hasDrivingLicense: data["hasDrivingLicense"] as? Bool ?? false
             )
             
             DispatchQueue.main.async {
                 self.currentCandidate = candidate
-                print("✅ Loaded candidate: \(candidate.name)")
+                print("✅ Loaded candidate: \(candidate.name) \(candidate.surname)")
             }
         }
     }

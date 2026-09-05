@@ -24,18 +24,9 @@ struct MainView: View {
         case history
     }
 
+    // Real candidate loaded from Firestore (the logged-in worker's profile)
     var currentCandidate: Candidate? {
-        guard !currentUserID.isEmpty else { return nil }
-        return Candidate(
-            id: currentUserID,
-            name: "John",
-            surname: "Doe",
-            experience: "3 years",
-            age: 24,
-            number: "07563278653",
-            skills: ["waiter"],
-            hasDrivingLicense: false
-        )
+        jobStore.currentCandidate
     }
 
     var body: some View {
@@ -110,10 +101,17 @@ struct MainView: View {
         .onAppear {
             if let userId = authViewModel.user?.uid {
                 jobStore.startListeners(for: userId, userRole: authViewModel.userRole.rawValue)
+                jobStore.fetchCurrentCandidate(userId: userId)
             }
             if let location = locationManager.userLocation, let candidate = currentCandidate {
                 jobStore.updateEligibleJobs(worker: candidate, userLocation: location)
             }
+        }
+        .onChange(of: jobStore.currentCandidate) { candidate in
+            // Refresh eligible jobs once the real candidate is loaded
+            guard let candidate else { return }
+            let currentLoc = locationManager.userLocation ?? CLLocation(latitude: 51.5074, longitude: -0.1278)
+            jobStore.updateEligibleJobs(worker: candidate, userLocation: currentLoc)
         }
     }
 

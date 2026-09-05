@@ -278,11 +278,20 @@ struct JobRowView: View {
                                     expandedCandidateID = (expandedCandidateID == candidate.id) ? nil : candidate.id
                                 }
                             },
-                            onAccept: {
+                            onAccept: { done in
                                 jobStore.acceptCandidate(job: job, candidate: candidate) { error in
                                     if let error = error {
                                         print("Error accepting candidate: \(error.localizedDescription)")
                                     }
+                                    done()
+                                }
+                            },
+                            onReject: { done in
+                                jobStore.rejectCandidate(job: job, candidate: candidate) { error in
+                                    if let error = error {
+                                        print("Error rejecting candidate: \(error.localizedDescription)")
+                                    }
+                                    done()
                                 }
                             }
                         )
@@ -359,9 +368,15 @@ struct CandidateRowView: View {
     let job: Job
     let isExpanded: Bool
     let onToggleExpand: () -> Void
-    let onAccept: () -> Void
+    let onAccept: (@escaping () -> Void) -> Void
+    var onReject: ((@escaping () -> Void) -> Void)? = nil
 
     private let accentBlue = Color(red: 0.2, green: 0.4, blue: 0.8)
+
+    @State private var isAccepting = false
+    @State private var isRejecting = false
+
+    private var isBusy: Bool { isAccepting || isRejecting }
 
     var isCandidateAccepted: Bool {
         if job.status == "accepted", let acceptedId = job.acceptedCandidate?.id {
@@ -400,16 +415,48 @@ struct CandidateRowView: View {
                     detailRow("Experience", value: candidate.experience.isEmpty ? "Not specified" : candidate.experience)
 
                     if !isCandidateAccepted {
-                        Button {
-                            onAccept()
-                        } label: {
-                            Text("Accept Candidate")
-                                .font(.subheadline.bold())
+                        HStack(spacing: 10) {
+                            Button {
+                                isAccepting = true
+                                onAccept {
+                                    isAccepting = false
+                                }
+                            } label: {
+                                Group {
+                                    if isAccepting {
+                                        ProgressView().tint(.white)
+                                    } else {
+                                        Text("Accept").font(.subheadline.bold())
+                                    }
+                                }
                                 .frame(maxWidth: .infinity)
                                 .padding(.vertical, 10)
                                 .background(Color.green)
                                 .foregroundColor(.white)
                                 .cornerRadius(8)
+                            }
+                            .disabled(isBusy)
+
+                            Button {
+                                isRejecting = true
+                                onReject? {
+                                    isRejecting = false
+                                }
+                            } label: {
+                                Group {
+                                    if isRejecting {
+                                        ProgressView().tint(.red)
+                                    } else {
+                                        Text("Reject").font(.subheadline.bold())
+                                    }
+                                }
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 10)
+                                .background(Color.red.opacity(0.1))
+                                .foregroundColor(.red)
+                                .cornerRadius(8)
+                            }
+                            .disabled(isBusy)
                         }
                         .padding(.top, 4)
                     } else {

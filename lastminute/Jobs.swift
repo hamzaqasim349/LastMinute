@@ -614,6 +614,38 @@ class JobStore: ObservableObject {
             completion?(nil)
         }
     }
+
+    // Reject a candidate by removing them from the job's candidates list
+    func rejectCandidate(job: Job, candidate: Candidate, completion: ((Error?) -> Void)? = nil) {
+        let jobRef = db.collection("jobs").document(job.id)
+
+        db.runTransaction({ (transaction, errorPointer) -> Any? in
+            let jobDocument: DocumentSnapshot
+            do {
+                try jobDocument = transaction.getDocument(jobRef)
+            } catch let fetchError as NSError {
+                errorPointer?.pointee = fetchError
+                return nil
+            }
+
+            var candidatesData = jobDocument.data()?["candidates"] as? [[String: Any]] ?? []
+            candidatesData.removeAll { ($0["id"] as? String) == candidate.id }
+
+            transaction.updateData([
+                "candidates": candidatesData
+            ], forDocument: jobRef)
+
+            return nil
+        }) { (_, error) in
+            if let error = error {
+                print("Error rejecting candidate: \(error.localizedDescription)")
+                completion?(error)
+                return
+            }
+            print("Candidate rejected successfully")
+            completion?(nil)
+        }
+    }
     
     func fetchEligibleWorkers(for job: Job, completion: @escaping ([Candidate]) -> Void) {
         let db = Firestore.firestore()

@@ -126,11 +126,20 @@ struct JobDetailView: View {
                                             expandedCandidateID = (expandedCandidateID == candidate.id) ? nil : candidate.id
                                         }
                                     },
-                                    onAccept: {
+                                    onAccept: { done in
                                         jobStore.acceptCandidate(job: job, candidate: candidate) { error in
                                             if let error = error {
                                                 print("Error: \(error.localizedDescription)")
                                             }
+                                            done()
+                                        }
+                                    },
+                                    onReject: { done in
+                                        jobStore.rejectCandidate(job: job, candidate: candidate) { error in
+                                            if let error = error {
+                                                print("Error rejecting: \(error.localizedDescription)")
+                                            }
+                                            done()
                                         }
                                     }
                                 )

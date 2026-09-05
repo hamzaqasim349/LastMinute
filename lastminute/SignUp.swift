@@ -41,11 +41,10 @@ struct SignUpView: View {
     @State private var requiresDrivingLicense = false
 
     // State
-    @State private var errorMessage: String?
     @State private var emailError: String?
     @State private var passwordError: String?
     @State private var isLoading = false
-    @State private var showErrorAlert = false
+    @State private var statusPopup: StatusPopupData? = nil
     @State private var showCountryPicker = false
     @State private var countrySearch = ""
     @FocusState private var emailFieldFocused: Bool
@@ -259,11 +258,7 @@ struct SignUpView: View {
                     .foregroundColor(Color(red: 0.12, green: 0.15, blue: 0.3))
             }
         }
-        .alert("Sign Up Failed", isPresented: $showErrorAlert) {
-            Button("Ok", role: .cancel) { }
-        } message: {
-            Text(errorMessage ?? "An unknown error occurred.")
-        }
+        .statusPopup($statusPopup)
     }
 
     // MARK: - Worker Details Section
@@ -362,7 +357,6 @@ struct SignUpView: View {
 
     private func signUp() {
         isLoading = true
-        errorMessage = nil
 
         let trimmedEmail = email.trimmingCharacters(in: .whitespaces)
         let trimmedPassword = password.trimmingCharacters(in: .whitespaces)
@@ -371,8 +365,9 @@ struct SignUpView: View {
             if let error = error {
                 DispatchQueue.main.async {
                     self.isLoading = false
-                    self.errorMessage = error.localizedDescription
-                    self.showErrorAlert = true
+                    withAnimation {
+                        self.statusPopup = StatusPopupData(kind: .error, title: "Sign Up Failed", message: error.localizedDescription)
+                    }
                 }
                 return
             }
@@ -380,8 +375,9 @@ struct SignUpView: View {
             guard let uid = result?.user.uid else {
                 DispatchQueue.main.async {
                     self.isLoading = false
-                    self.errorMessage = "Unable to get user ID"
-                    self.showErrorAlert = true
+                    withAnimation {
+                        self.statusPopup = StatusPopupData(kind: .error, title: "Sign Up Failed", message: "Unable to get user ID")
+                    }
                 }
                 return
             }
@@ -412,8 +408,9 @@ struct SignUpView: View {
                 if let error = error {
                     DispatchQueue.main.async {
                         self.isLoading = false
-                        self.errorMessage = error.localizedDescription
-                        self.showErrorAlert = true
+                        withAnimation {
+                            self.statusPopup = StatusPopupData(kind: .error, title: "Sign Up Failed", message: error.localizedDescription)
+                        }
                     }
                     return
                 }

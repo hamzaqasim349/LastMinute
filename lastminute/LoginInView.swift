@@ -10,12 +10,11 @@ struct LogInView: View {
     @EnvironmentObject var authViewModel: AuthViewModel
     @State private var email = ""
     @State private var password = ""
-    @State private var errorMessage: String?
     @State private var emailError: String?
     @State private var passwordError: String?
     @State private var showForgotPassword = false
     @State private var isLoading = false
-    @State private var showErrorAlert = false
+    @State private var statusPopup: StatusPopupData? = nil
     @FocusState private var emailFieldFocused: Bool
 
     var body: some View {
@@ -142,11 +141,7 @@ struct LogInView: View {
         .sheet(isPresented: $showForgotPassword) {
             ForgotPasswordView()
         }
-        .alert("Login Failed", isPresented: $showErrorAlert) {
-            Button("Ok", role: .cancel) { }
-        } message: {
-            Text(errorMessage ?? "An unknown error occurred.")
-        }
+        .statusPopup($statusPopup)
     }
 
     // MARK: - Validation & Login
@@ -160,7 +155,6 @@ struct LogInView: View {
         // Reset errors
         emailError = nil
         passwordError = nil
-        errorMessage = nil
 
         var hasError = false
 
@@ -190,8 +184,9 @@ struct LogInView: View {
                 isLoading = false
             } catch {
                 isLoading = false
-                errorMessage = error.localizedDescription
-                showErrorAlert = true
+                withAnimation {
+                    statusPopup = StatusPopupData(kind: .error, title: "Login Failed", message: error.localizedDescription)
+                }
             }
         }
     }

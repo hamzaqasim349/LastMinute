@@ -20,8 +20,7 @@ struct bPostNewJobForm: View {
     @Binding var path: NavigationPath
 
     @State private var isPosting = false
-    @State private var showErrorAlert = false
-    @State private var errorMessage = ""
+    @State private var statusPopup: StatusPopupData? = nil
 
     let allSkills = ["Cashier", "Delivery Driver", "Stock Replenisher", "Waiter", "Cook/Chef"]
     @State private var selectedSkills: Set<String> = []
@@ -172,11 +171,7 @@ struct bPostNewJobForm: View {
                     .foregroundColor(Color(red: 0.12, green: 0.15, blue: 0.3))
             }
         }
-        .alert("Error", isPresented: $showErrorAlert) {
-            Button("Ok", role: .cancel) { }
-        } message: {
-            Text(errorMessage)
-        }
+        .statusPopup($statusPopup)
     }
 
     // MARK: - Helpers
@@ -233,8 +228,9 @@ struct bPostNewJobForm: View {
             DispatchQueue.main.async {
                 isPosting = false
                 if let error = error {
-                    errorMessage = error.localizedDescription
-                    showErrorAlert = true
+                    withAnimation {
+                        statusPopup = StatusPopupData(kind: .error, title: "Error", message: error.localizedDescription)
+                    }
                 } else {
                     path.append(BusinessRoute.postSuccess)
                 }

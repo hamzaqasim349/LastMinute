@@ -14,7 +14,7 @@ struct CurrentJobsView: View {
     @State private var selectedJob: Job? = nil
     @State private var enteredCode: String = ""
     @State private var showCodeEntry: Bool = false
-    @State private var alertMessage: String? = nil
+    @State private var statusPopup: StatusPopupData? = nil
 
     private let accentBlue = Color(red: 0.2, green: 0.4, blue: 0.8)
 
@@ -66,12 +66,9 @@ struct CurrentJobsView: View {
                 enteredCode = ""
             }
         }, message: {
-            if let msg = alertMessage {
-                Text(msg)
-            } else {
-                Text("Please enter the completion code provided by the business.")
-            }
+            Text("Please enter the completion code provided by the business.")
         })
+        .statusPopup($statusPopup)
     }
 
     // MARK: - Job Card
@@ -107,7 +104,6 @@ struct CurrentJobsView: View {
             Button {
                 selectedJob = job
                 enteredCode = ""
-                alertMessage = nil
                 showCodeEntry = true
             } label: {
                 HStack {
@@ -146,21 +142,28 @@ struct CurrentJobsView: View {
     func verifyCode() {
         guard let job = selectedJob else { return }
 
+        // Close the code-entry dialog first
+        showCodeEntry = false
+
         if enteredCode.uppercased() == job.completionCode?.uppercased() {
             let jobRef = Firestore.firestore().collection("jobs").document(job.id)
 
             jobRef.updateData(["status": "completed"]) { error in
-                if let error = error {
-                    alertMessage = "Error marking job complete: \(error.localizedDescription)"
-                } else {
-                    alertMessage = "Job marked as complete!"
-                    jobStore.workerActiveJobs.removeAll { $0.id == job.id }
+                DispatchQueue.main.async {
+                    if let error = error {
+                        statusPopup = StatusPopupData(kind: .error, title: "Error", message: "Could not mark job complete: \(error.localizedDescription)")
+                    } else {
+                        jobStore.workerActiveJobs.removeAll { $0.id == job.id }
+                        jobStore.activeJobs.removeAll { $0.id == job.id }
+                        statusPopup = StatusPopupData(kind: .success, title: "Job Completed", message: "The job has been marked as complete.")
+                    }
+                    selectedJob = nil
+                    enteredCode = ""
                 }
-                showCodeEntry = true
             }
         } else {
-            alertMessage = "Incorrect completion code. Please try again."
-            showCodeEntry = true
+            statusPopup = StatusPopupData(kind: .error, title: "Incorrect Code", message: "The completion code you entered is incorrect. Please try again.")
+            enteredCode = ""
         }
     }
 

@@ -20,8 +20,10 @@ struct WorkerJobDetailView: View {
     @State private var showAlert = false
     @State private var alertTitle = ""
     @State private var alertMessage = ""
+    @State private var didApplyLocally = false
 
     private var hasApplied: Bool {
+        if didApplyLocally { return true }
         guard let candidate = candidate else { return false }
         return job.candidates?.contains(where: { $0.id == candidate.id }) ?? false
     }
@@ -205,6 +207,7 @@ struct WorkerJobDetailView: View {
                     alertTitle = "Application Failed"
                     alertMessage = error.localizedDescription
                 } else {
+                    didApplyLocally = true
                     alertTitle = "Applied!"
                     alertMessage = "Your application has been submitted successfully."
                 }

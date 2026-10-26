@@ -60,6 +60,8 @@ struct Job: Identifiable, Equatable {
     var acceptedWorkerId: String? = nil
     var expiryDate: Date? = nil
     var createdAt: Date? = nil
+    var paymentStatus: String? = nil   // "pending" once the job is completed, "paid" after the customer pays
+    var paymentMethod: String? = nil   // "cash" or "card"
     
     var timeUntilExpiry: TimeInterval? {
             guard let expiryDate = expiryDate else { return nil }
@@ -76,7 +78,8 @@ struct Job: Identifiable, Equatable {
             lhs.status == rhs.status &&
             lhs.candidates == rhs.candidates &&
             lhs.acceptedCandidate == rhs.acceptedCandidate &&
-            lhs.completionCode == rhs.completionCode
+            lhs.completionCode == rhs.completionCode &&
+            lhs.paymentStatus == rhs.paymentStatus
     }
     
     // Updated memberwise initializer including completionCode
@@ -173,6 +176,8 @@ struct Job: Identifiable, Equatable {
         self.status = status
         self.geoLocation = data["geoLocation"] as? GeoPoint ?? GeoPoint(latitude: 0, longitude: 0)
         self.completionCode = data["completionCode"] as? String
+        self.paymentStatus = data["paymentStatus"] as? String
+        self.paymentMethod = data["paymentMethod"] as? String
         
         if let expiryTimestamp = data["expiryDate"] as? Timestamp {
                 self.expiryDate = expiryTimestamp.dateValue()
@@ -508,7 +513,7 @@ class JobStore: ObservableObject {
     
     // Mark a job as completed
     func completeJob(_ job: Job, completion: ((Error?) -> Void)? = nil) {
-        db.collection("jobs").document(job.id).updateData(["status": "completed"]) { error in
+        db.collection("jobs").document(job.id).updateData(["status": "completed", "paymentStatus": "pending"]) { error in
             if let error = error {
                 print("Error updating job status: \(error.localizedDescription)")
                 completion?(error)

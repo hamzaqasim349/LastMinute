@@ -148,7 +148,7 @@ struct CurrentJobsView: View {
         if enteredCode.uppercased() == job.completionCode?.uppercased() {
             let jobRef = Firestore.firestore().collection("jobs").document(job.id)
 
-            jobRef.updateData(["status": "completed"]) { error in
+            jobRef.updateData(["status": "completed", "paymentStatus": "pending"]) { error in
                 DispatchQueue.main.async {
                     if let error = error {
                         statusPopup = StatusPopupData(kind: .error, title: "Error", message: "Could not mark job complete: \(error.localizedDescription)")

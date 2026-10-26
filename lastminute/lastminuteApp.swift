@@ -22,6 +22,8 @@ class AppDelegate: NSObject, UIApplicationDelegate {
         settings.cacheSettings = MemoryCacheSettings() // This disables persistence (no disk caching)
         Firestore.firestore().settings = settings
 
+        StripeManager.shared.setup()
+
         return true
     }
 }

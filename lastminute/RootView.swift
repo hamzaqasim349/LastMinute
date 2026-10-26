@@ -12,6 +12,8 @@ struct RootView: View {
     @State private var path = NavigationPath()
     @State private var profileImage: Image? = nil
     @State private var navigationID = UUID()
+    @State private var deferredPaymentJobIDs: Set<String> = []
+    @State private var paymentJob: Job? = nil
     
     var body: some View {
         NavigationStack(path: $path) {
@@ -115,6 +117,25 @@ struct RootView: View {
         .id(navigationID)
         .onChange(of: authViewModel.currentScreen) { _, newScreen in
             updatePath(for: newScreen)
+            if newScreen != .businessDashboard { paymentJob = nil }
+        }
+        // Ask the business to pay once a worker completes one of their jobs
+        .onChange(of: jobStore.completedJobs) { _, _ in
+            presentNextPendingPayment()
+        }
+        .fullScreenCover(item: $paymentJob, onDismiss: presentNextPendingPayment) { job in
+            JobPaymentView(job: job) {
+                deferredPaymentJobIDs.insert(job.id)
+                paymentJob = nil
+            }
+        }
+    }
+
+    // Presents the first completed job awaiting payment that the business hasn't postponed this session
+    private func presentNextPendingPayment() {
+        guard paymentJob == nil, authViewModel.currentScreen == .businessDashboard else { return }
+        paymentJob = jobStore.completedJobs.first {
+            $0.paymentStatus == "pending" && !deferredPaymentJobIDs.contains($0.id)
         }
     }
     
